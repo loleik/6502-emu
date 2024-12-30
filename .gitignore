@@ -16,6 +16,7 @@ Cargo.lock
 **.lst
 
 **/*.csv
+
 **/*.txt
 
 # MSVC Windows builds of rustc generate these, which store debugging information
