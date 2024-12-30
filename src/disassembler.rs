@@ -8,6 +8,7 @@ pub fn disassembler(data: &Vec<u8>) {
 
     let mut i: usize = 0;
 
+    // I feel like this is messy and cumbersome.
     // Loop through all the provided data.
     while i < data.len() {
         if let Some(current) = prefix_trie.get_instruction(data[i]) {
