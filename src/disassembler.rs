@@ -1,6 +1,37 @@
 use crate::trie::DisTrie;
 
-pub fn disassembler() -> DisTrie {
+// Main disassembler function. Takes the binary vector as input.
+pub fn disassembler(data: &Vec<u8>) {
+    let prefix_trie: DisTrie = make_tree(); // Creates the trie.
+
+    let mut i: usize = 0;
+
+    // Just printing the first 20 instructions for now.
+    // No need to spam out the whole file for now while debugging.
+    while i < 20 {
+        println!("{}", data[i]);
+
+        println!("{:?} : {:02X}",
+            prefix_trie.get_instruction(data[i]),
+            data[i]);
+
+        if let Some(current) = prefix_trie.get_instruction(data[i]) {
+            let arr: Vec<&str> = current.split(",").collect();
+            println!("{} {} {} \n", arr[2], arr[3], arr[4]);
+            if arr[2].parse::<usize>().unwrap() > 1 {
+                i += arr[2].parse::<usize>().unwrap();
+            } else {
+                i += 1
+            }
+        } else {
+            i += 1
+        }
+    }
+}
+
+// Complete mess generated with python haha.
+// Next step will be tidying up the info using python.
+fn make_tree() -> DisTrie {
     let mut dis_trie: DisTrie = DisTrie::new();
 
     dis_trie.insert(&0x69_u8, "ADC,IMM,2,2,CZidbVN".to_string());

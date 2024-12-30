@@ -1,31 +1,43 @@
-use lolei_6502::{disassembler::disassembler, trie::DisTrie};
+use lolei_6502::disassembler::disassembler;
 
 use std::fs;
+use clap::{arg, Command};
 
-// Messy "disassembler" to start out. It gives expected outputs so far.
+// Basically the git example from https://github.com/clap-rs/clap/tree/master/examples.
+// Decided to get this implemented earlier than with chip-8.
+fn cli() -> Command {
+    Command::new("lolei_6502")
+        .about("Emulator and disassembler for the MOS Technology 6502 microprocessor")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .allow_external_subcommands(true)
+        // Subcommand for the disassembler.
+        .subcommand( // Expects a path to a binary file.
+            Command::new("disassemble")
+                .about("Disassemble binaries")
+                .arg(arg!(<PATH> "The binary to disassemble"))
+                .arg_required_else_help(true),
+        )
+}
+
 fn main() {
-    let data: Vec<u8> = match fs::read("6502_decimal_test.bin") {
-        Ok(data) => data,
-        Err(error) => panic!("Problem opening file: {error:?}")
-    };
+    let matches = cli().get_matches();
 
-    let dis_trie: DisTrie = disassembler();
+    match matches.subcommand() {
+        // Executing the disassembler subcommand.
+        Some(("disassemble", sub_matches)) => {
+            println!(
+                "Disassembling {}:",
+                sub_matches.get_one::<String>("PATH").expect("required")
+            );
 
-    let mut i: usize = 0;
-
-    while i < 20 {
-        println!("{}", data[i]);
-        println!("{:?} : {:02X}",
-            dis_trie.get_instruction(data[i]),
-            data[i]);
-        if let Some(current) = dis_trie.get_instruction(data[i]) {
-            let arr: Vec<&str> = current.split(",").collect();
-            println!("{} {} {} \n", arr[2], arr[3], arr[4]);
-            if arr[2].parse::<usize>().unwrap() > 1 {
-                i += arr[2].parse::<usize>().unwrap();
-            } else {
-                i += 1
-            }
-        };
+            let data: Vec<u8> = match fs::read("6502_decimal_test.bin") {
+                Ok(data) => data,
+                Err(error) => panic!("Problem opening file: {error:?}")
+            };
+        
+            disassembler(&data);
+        }
+        _ => {unreachable!()}
     }
 }
