@@ -87,7 +87,13 @@ pub fn disassembler(data: &Vec<u8>) {
                         data[i + 1],
                     )
                 }
-                // I haven't written a branch for REL yet.
+                "REL" => { // Relative
+                    println!(
+                        "{} ${:02X}",
+                        arr[0],
+                        data[i + 1] as i8,
+                    )
+                }
                 _ => println!(
                         "{:?} : {:?} : {:02X}",
                         arr[0], arr[1],
