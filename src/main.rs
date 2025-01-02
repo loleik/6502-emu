@@ -1,4 +1,4 @@
-use lolei_6502::disassembler::disassembler;
+use lolei_6502::{disassembler::disassembler, trie::{gen_trie, Trie}};
 
 use std::fs;
 use clap::{arg, Command};
@@ -21,6 +21,8 @@ fn cli() -> Command {
 }
 
 fn main() {
+    let prefix_trie: Trie = gen_trie();
+
     let matches = cli().get_matches();
 
     match matches.subcommand() {
@@ -36,7 +38,7 @@ fn main() {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
         
-            disassembler(&data);
+            disassembler(&data, &prefix_trie);
         }
         _ => {unreachable!()}
     }
