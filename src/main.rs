@@ -16,8 +16,21 @@ fn cli() -> Command {
             Command::new("disassemble")
                 .about("Disassemble binaries")
                 .arg(arg!(<PATH> "The binary to disassemble"))
+                .arg(
+                    arg!(<START> "The start address for the program counter")
+                        .value_parser(parse_hex)
+                )
                 .arg_required_else_help(true),
         )
+}
+
+fn parse_hex(start: &str) -> Result<u16, String> {
+    if let Some(hex) = start.strip_prefix("0x") {
+        u16::from_str_radix(hex, 16)
+            .map_err(|e| format!("Invalid hex value: {e}"))
+    } else {
+        Err("Value must start with 0x".to_string())
+    }
 }
 
 fn main() {
@@ -28,17 +41,20 @@ fn main() {
     match matches.subcommand() {
         // Executing the disassembler subcommand.
         Some(("disassemble", sub_matches)) => {
+            let path: &String = sub_matches.get_one::<String>("PATH").expect("Required");
+            let start: &u16 = sub_matches.get_one::<u16>("START").expect("Required");
+            
             println!(
                 "Disassembling {}:",
                 sub_matches.get_one::<String>("PATH").expect("required")
             );
 
-            let data: Vec<u8> = match fs::read("6502_decimal_test.bin") {
+            let data: Vec<u8> = match fs::read(path) {
                 Ok(data) => data,
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
         
-            disassembler(&data, &prefix_trie);
+            disassembler(&data, start, &prefix_trie);
         }
         _ => {unreachable!()}
     }
