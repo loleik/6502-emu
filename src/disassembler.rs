@@ -21,7 +21,7 @@ impl BasicSystem {
 // Jumps and such won't work as I'm just plainly going through the binary
 // instruction by instruction, only ensuring we jump past any addresses or data.
 pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
-    let mut i: usize = 0;
+    let mut i: usize = *start as usize;
 
     // Initialize the basic system.
     let mut basic_system = BasicSystem::new(start);
@@ -33,8 +33,8 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
 
     // I feel like this is messy and cumbersome.
     // Loop through all the provided data.
-    while i < data.len() {
-        if let Some(current) = prefix_trie.get_instruction(data[i]) {
+    while i < basic_system.pc as usize + data.len() {
+        if let Some(current) = prefix_trie.get_instruction(basic_system.memory[i]) {
             let arr: Vec<&str> = current.split(",").collect();
 
             // Memory addresses are stored as little endian values.
@@ -44,14 +44,16 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     println!(
                         "{} ${:04X}",
                         arr[0],
-                        ((data[i + 1] as u16) << 8) | (data[i + 2] as u16)
+                        ((basic_system.memory[i + 1] as u16) << 8) 
+                        | (basic_system.memory[i + 2] as u16)
                     )
                 }
                 "ABSX" | "ABSY" => { // Absolute X and Y
                     println!(
                         "{} ${:04X},{}",
                         arr[0],
-                        ((data[i + 1] as u16) << 8) | (data[i + 2] as u16),
+                        ((basic_system.memory[i + 1] as u16) << 8) 
+                        | (basic_system.memory[i + 2] as u16),
                         arr[1].chars().last().unwrap()
                     )
                 }
@@ -59,7 +61,8 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     println!(
                         "{} (${:04X})",
                         arr[0],
-                        ((data[i + 1] as u16) << 8) | (data[i + 2] as u16),
+                        ((basic_system.memory[i + 1] as u16) << 8) 
+                        | (basic_system.memory[i + 2] as u16),
                     )
                 }
                 "IMP" => { // Implicit
@@ -78,21 +81,21 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     println!(
                         "{} #{:02X}",
                         arr[0],
-                        data[i + 1],
+                        basic_system.memory[i + 1],
                     )
                 }
                 "ZP" => { // Zero Page
                     println!(
                         "{} ${:02X}",
                         arr[0],
-                        data[i + 1],
+                        basic_system.memory[i + 1],
                     )
                 }
                 "ZPX" | "ZPY" => { // Zero Page X and Y
                     println!(
                         "{} ${:02X},{}",
                         arr[0],
-                        data[i + 1],
+                        basic_system.memory[i + 1],
                         arr[1].chars().last().unwrap(),
                     )
                 }
@@ -100,14 +103,14 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     println!(
                         "{} (${:02X},X)",
                         arr[0],
-                        data[i + 1],
+                        basic_system.memory[i + 1],
                     )
                 }
                 "INDY" => { // Indirect Indexed
                     println!(
                         "{} (${:02X}),Y",
                         arr[0],
-                        data[i + 1],
+                        basic_system.memory[i + 1],
                     )
                 }
                 // Only the branch functions use relative addressing.
@@ -115,13 +118,13 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     println!(
                         "{} ${:02X}",
                         arr[0],
-                        data[i + 1] as i8,
+                        basic_system.memory[i + 1] as i8,
                     )
                 }
                 _ => println!(
                         "{:?} : {:?} : {:02X}",
                         arr[0], arr[1],
-                        data[i]
+                        basic_system.memory[i]
                 )
             }
 
