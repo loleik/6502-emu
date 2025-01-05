@@ -33,7 +33,7 @@ fn parse_hex(start: &str) -> Result<u16, String> {
     }
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let prefix_trie: Trie = gen_trie();
 
     let matches = cli().get_matches();
@@ -54,8 +54,10 @@ fn main() {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
         
-            disassembler(&data, start, &prefix_trie);
+            disassembler(&data, start, &prefix_trie)?;
         }
         _ => {unreachable!()}
     }
+
+    Ok(())
 }

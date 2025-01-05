@@ -1,7 +1,11 @@
 use crate::trie::Trie;
 
+use std::fs::File;
+use std::io::prelude::*;
+
 // Very basic system struct for the purpose of disassembly.
-// The branch and jump instructions need a basic implementation to access all code of a program.
+// Thought I needed this but it really seems like I didn't at all.
+// I'll leave it for now and remove it later.
 struct BasicSystem {
     memory: [u8; 16384], // 16kb of memory
     pc: u16, // 16-bit program counter
@@ -20,8 +24,15 @@ impl BasicSystem {
 // Main disassembler function. Takes the binary vector as input.
 // Jumps and such won't work as I'm just plainly going through the binary
 // instruction by instruction, only ensuring we jump past any addresses or data.
-pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
+pub fn disassembler(
+    data: &Vec<u8>, 
+    start: &u16, 
+    prefix_trie: &Trie
+) -> std::io::Result<()> {
     let mut i: usize = *start as usize;
+    let mut to_visit = Vec::new();
+
+    let mut file = File::create("out.txt")?;
 
     // Initialize the basic system.
     let mut basic_system = BasicSystem::new(start);
@@ -37,20 +48,27 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
         if let Some(current) = prefix_trie.get_instruction(basic_system.memory[i]) {
             let arr: Vec<&str> = current.split(",").collect();
 
+            if arr[0] == "JMP" || arr[0] == "JSR" {
+                to_visit.push(
+                    ((basic_system.memory[i + 1] as u16) << 8) 
+                    | (basic_system.memory[i + 2] as u16)
+                );
+            }
+
             // Memory addresses are stored as little endian values.
             // I am honestly not sure if I'm handling addresses in the right endian or not..
-            match arr[1] {
+            let line: String = match arr[1] {
                 "ABS" => { // Absolute
-                    println!(
-                        "{} ${:04X}",
+                    format!(
+                        "{} ${:04X} \n",
                         arr[0],
                         ((basic_system.memory[i + 1] as u16) << 8) 
                         | (basic_system.memory[i + 2] as u16)
                     )
                 }
                 "ABSX" | "ABSY" => { // Absolute X and Y
-                    println!(
-                        "{} ${:04X},{}",
+                    format!(
+                        "{} ${:04X},{} \n",
                         arr[0],
                         ((basic_system.memory[i + 1] as u16) << 8) 
                         | (basic_system.memory[i + 2] as u16),
@@ -58,75 +76,78 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
                     )
                 }
                 "IND" => { // Indirect
-                    println!(
-                        "{} (${:04X})",
+                    format!(
+                        "{} (${:04X}) \n",
                         arr[0],
                         ((basic_system.memory[i + 1] as u16) << 8) 
                         | (basic_system.memory[i + 2] as u16),
                     )
                 }
                 "IMP" => { // Implicit
-                    println!(
-                        "{}",
+                    format!(
+                        "{} \n",
                         arr[0],
                     )
                 }
                 "ACC" => { // Accumulator
-                    println!(
-                        "{} A",
+                    format!(
+                        "{} A \n",
                         arr[0],
                     )
                 }
                 "IMM" => { // Immediate
-                    println!(
-                        "{} #{:02X}",
+                    format!(
+                        "{} #{:02X} \n",
                         arr[0],
                         basic_system.memory[i + 1],
                     )
                 }
                 "ZP" => { // Zero Page
-                    println!(
-                        "{} ${:02X}",
+                    format!(
+                        "{} ${:02X} \n",
                         arr[0],
                         basic_system.memory[i + 1],
                     )
                 }
                 "ZPX" | "ZPY" => { // Zero Page X and Y
-                    println!(
-                        "{} ${:02X},{}",
+                    format!(
+                        "{} ${:02X},{} \n",
                         arr[0],
                         basic_system.memory[i + 1],
                         arr[1].chars().last().unwrap(),
                     )
                 }
                 "INDX" => { // Indexed Indirect
-                    println!(
-                        "{} (${:02X},X)",
+                    format!(
+                        "{} (${:02X},X) \n",
                         arr[0],
                         basic_system.memory[i + 1],
                     )
                 }
                 "INDY" => { // Indirect Indexed
-                    println!(
-                        "{} (${:02X}),Y",
+                    format!(
+                        "{} (${:02X}),Y \n",
                         arr[0],
                         basic_system.memory[i + 1],
                     )
                 }
                 // Only the branch functions use relative addressing.
                 "REL" => { // Relative
-                    println!(
-                        "{} ${:02X}",
+                    format!(
+                        "{} ${:02X} \n",
                         arr[0],
                         basic_system.memory[i + 1] as i8,
                     )
                 }
-                _ => println!(
-                        "{:?} : {:?} : {:02X}",
+                _ => format!(
+                        "{:?} : {:?} : {:02X} \n",
                         arr[0], arr[1],
                         basic_system.memory[i]
                 )
-            }
+            };
+
+            print!("{line}");
+            file.write_all(line.as_bytes())?;
 
             if arr[2].parse::<usize>().unwrap() > 1 {
                 i += arr[2].parse::<usize>().unwrap();
@@ -137,4 +158,6 @@ pub fn disassembler(data: &Vec<u8>, start: &u16, prefix_trie: &Trie) {
             i += 1
         }
     }
+
+    Ok(())
 }
