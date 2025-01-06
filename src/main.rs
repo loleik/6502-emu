@@ -1,4 +1,8 @@
-use lolei_6502::{disassembler::disassembler, trie::{gen_trie, Trie}};
+use lolei_6502::{
+    disassembler::disassembler,
+    system::emulator,
+    trie::{gen_trie, Trie}
+};
 
 use std::fs;
 use clap::{arg, Command};
@@ -21,6 +25,11 @@ fn cli() -> Command {
                         .value_parser(parse_hex)
                 )
                 .arg_required_else_help(true),
+        )
+        // Subcommand for emulator.
+        .subcommand(
+            Command::new("emulator")
+                .about("Emulate 6502")
         )
 }
 
@@ -55,6 +64,10 @@ fn main() -> std::io::Result<()> {
             };
         
             disassembler(&data, start, &prefix_trie)?;
+        }
+        // Emulator subcommand.
+        Some(("emulator", _sub_matches)) => {
+            emulator()?;
         }
         _ => {unreachable!()}
     }
