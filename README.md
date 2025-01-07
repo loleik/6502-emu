@@ -1,4 +1,18 @@
 # 6502-emu
-Emulator and disassembler for the MOS Technology 6502 microprocessor.
+Emulator and disassembler for the MOS Technology 6502 microprocessor
 
-Currently working on the disassembler part. Specifically trying to solve a discrepency with my codes output. If I put a binary through my disassembler, then through another written by someone else, there is a single line missing in my output. In the other disassembler, it is represented by "???" interestingly, so I'm really not sure where to start with that.
+Usage: `lolei_6502 <COMMAND>` or `cargo run -- <COMMAND>`
+
+Commands:
+* `disassemble`  Disassemble binaries
+    * `<PATH>` Path to the target binary
+    * `<START>` Start address of the binary
+* `emulator`     Emulate 6502
+    * `<PATH>` Path to the target binary
+* `help`         Print this message or the help of the given subcommand(s)
+
+Options:
+* `-h`, `--help`  Print help
+
+## Notes
+This is not an emulator of any specific system, so things like the amount of memory may seem strange and not align with any specific system. I may use this as a core for some other emulator later but this repository is just for 6502 emulation.
