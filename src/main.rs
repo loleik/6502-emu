@@ -49,7 +49,7 @@ fn parse_hex(start: &str) -> Result<u16, String> {
 }
 
 fn main() -> std::io::Result<()> {
-    let prefix_trie: Trie = gen_trie();
+    let prefix_tree: Trie = gen_trie();
 
     let matches = cli().get_matches();
 
@@ -70,7 +70,7 @@ fn main() -> std::io::Result<()> {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
         
-            disassembler(&data, start, &prefix_trie)?;
+            disassembler(&data, start, &prefix_tree)?;
         }
         // Emulator subcommand.
         Some(("emulator", sub_matches)) => {
@@ -88,7 +88,7 @@ fn main() -> std::io::Result<()> {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
 
-            emulator(&data, start)?;
+            emulator(&data, start, &prefix_tree);
         }
         _ => {unreachable!()}
     }

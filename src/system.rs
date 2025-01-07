@@ -1,3 +1,5 @@
+use crate::trie::Trie;
+
 pub struct Core {
     acc: u8, // 8-bit accumulator register
     stat: u8, // 7-bit status register, stored as u8
@@ -6,6 +8,7 @@ pub struct Core {
     ix: u8, // 8-bit index register
     iy: u8, // 8-bit index register
     ir: u8, // 8-bit instruction register
+    decoded: Option<String>, // Stores decoded instructions so I'm not passing around multiple variables separately.
     // Note: This doesn't align with any particular systems, it is just enough to 
     // load specific 6502 test binaries.
     memory: [u8; 16384], // 16kb of memory
@@ -21,6 +24,7 @@ impl Core {
             ix: 0,
             iy: 0,
             ir: 0,
+            decoded: None,
             memory: [0; 16384],
         }
     }
@@ -30,13 +34,14 @@ impl Core {
     // for debugging and testing later.
     pub fn core_dump(core: &Self) {
         println!("-->core dump<--");
-        println!("acc:    0x{:02X}", core.acc);
-        println!("stat:   0x{:02X}", core.stat);
-        println!("pc:     0x{:04X}", core.pc);
-        println!("sp:     0x{:02X}", core.sp);
-        println!("ix:     0x{:02X}", core.ix);
-        println!("iy:     0x{:02X}", core.iy);
-        println!("ir:     0x{:02X}", core.ir);
+        println!("acc:     0x{:02X}", core.acc);
+        println!("stat:    0x{:02X}", core.stat);
+        println!("pc:      0x{:04X}", core.pc);
+        println!("sp:      0x{:02X}", core.sp);
+        println!("ix:      0x{:02X}", core.ix);
+        println!("iy:      0x{:02X}", core.iy);
+        println!("ir:      0x{:02X}", core.ir);
+        println!("decoded: {:?}", core.decoded);
 
         // Very ugly memory dump code. Needs tidying up to be useful later.
         let mut result = Vec::new();
@@ -89,12 +94,23 @@ fn fetch(core: &mut Core) {
     core.ir = core.memory[core.pc as usize];
 }
 
-pub fn emulator(data: &Vec<u8>, start: &u16) -> std::io::Result<()> {
+// Decoding the instruction using the prefix tree.
+fn decode(core: &mut Core, prefix_tree: &Trie) {
+    println!(
+        "{:?}",
+        prefix_tree.get_instruction(core.ir)
+    );
+
+    core.decoded = prefix_tree.get_instruction(core.ir);
+}
+
+pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
     fetch(&mut core);
 
-    Core::core_dump(&core);
+    decode(&mut core, prefix_tree);
 
-    Ok(())
+    println!();
+    Core::core_dump(&core);
 }
