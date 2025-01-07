@@ -30,6 +30,12 @@ fn cli() -> Command {
         .subcommand(
             Command::new("emulator")
                 .about("Emulate 6502")
+                .arg(arg!(<PATH> "The binary to run"))
+                .arg(
+                    arg!(<START> "The start address for the program counter")
+                        .value_parser(parse_hex)
+                )
+                .arg_required_else_help(true)
         )
 }
 
@@ -54,8 +60,9 @@ fn main() -> std::io::Result<()> {
             let start: &u16 = sub_matches.get_one::<u16>("START").expect("Required");
             
             println!(
-                "Disassembling {}:",
-                sub_matches.get_one::<String>("PATH").expect("required")
+                "Disassembling {} : 0x{:04X}",
+                path,
+                start,
             );
 
             let data: Vec<u8> = match fs::read(path) {
@@ -66,8 +73,22 @@ fn main() -> std::io::Result<()> {
             disassembler(&data, start, &prefix_trie)?;
         }
         // Emulator subcommand.
-        Some(("emulator", _sub_matches)) => {
-            emulator()?;
+        Some(("emulator", sub_matches)) => {
+            let path: &String = sub_matches.get_one::<String>("PATH").expect("Required");
+            let start: &u16 = sub_matches.get_one::<u16>("START").expect("Required");
+
+            println!(
+                "Running {} : 0x{:04X}",
+                path,
+                start
+            );
+
+            let data: Vec<u8> = match fs::read(path) {
+                Ok(data) => data,
+                Err(error) => panic!("Problem opening file: {error:?}")
+            };
+
+            emulator(&data, start)?;
         }
         _ => {unreachable!()}
     }
