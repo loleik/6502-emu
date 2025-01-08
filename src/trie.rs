@@ -29,7 +29,7 @@ pub struct Node {
     is_prefix: bool,
     children: HashMap<u8, Node>,
     instruction: Option<String>,
-    function: Option<for<'a> fn(&'a mut Core, &str) -> &'a mut Core>
+    function: Option<fn(&mut Core) -> &mut Core>
 }
 
 // Trie struct
@@ -49,7 +49,7 @@ impl Trie {
         &mut self, 
         instruction: &u8, 
         info: String,
-        function: Option<for<'a> fn(&'a mut Core, &str) -> &'a mut Core>
+        function: Option<fn(&mut Core) -> &mut Core>
     ) {
         let mut current_node = &mut self.root;
 
@@ -94,6 +94,21 @@ impl Trie {
         }
 
         current_node.instruction.clone()
+    }
+
+    pub fn get_function(&self, instruction: u8) -> Option<fn(&mut Core) -> &mut Core> {
+        let mut current_node = &self.root;
+
+        for i in 0..8 {
+            let bit = (instruction >> i) & 1;
+
+            match current_node.children.get(&bit) {
+                Some(node) => current_node = node,
+                None => return None,
+            }
+        }
+
+        current_node.function.clone()
     }
 }
 

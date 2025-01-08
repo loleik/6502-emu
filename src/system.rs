@@ -1,17 +1,18 @@
 use crate::trie::Trie;
 
 pub struct Core {
-    acc: u8, // 8-bit accumulator register
-    stat: u8, // 7-bit status register, stored as u8
-    pc: u16, // 16-bit program counter
-    sp: u8, // 8-bit stack pointer
-    ix: u8, // 8-bit index register
-    iy: u8, // 8-bit index register
-    ir: u8, // 8-bit instruction register
-    decoded: Option<String>, // Stores decoded instructions so I'm not passing around multiple variables separately.
+    pub acc: u8, // 8-bit accumulator register
+    pub stat: u8, // 7-bit status register, stored as u8
+    // negative, overflow, break, decimal, interrupt disable, zero, carry, with final bit ignored
+    pub pc: u16, // 16-bit program counter
+    pub sp: u8, // 8-bit stack pointer
+    pub ix: u8, // 8-bit index register
+    pub iy: u8, // 8-bit index register
+    pub ir: u8, // 8-bit instruction register
+    pub decoded: Option<fn(&mut Core) -> &mut Core>, // Stores opcode funciton pointer
     // Note: This doesn't align with any particular systems, it is just enough to 
     // load specific 6502 test binaries.
-    memory: [u8; 16384], // 16kb of memory
+    pub memory: [u8; 16384], // 16kb of memory
 }
 
 impl Core {
@@ -35,7 +36,7 @@ impl Core {
     pub fn core_dump(core: &Self) {
         println!("-->core dump<--");
         println!("acc:     0x{:02X}", core.acc);
-        println!("stat:    0x{:02X}", core.stat);
+        println!("stat:    0b{:08b}", core.stat);
         println!("pc:      0x{:04X}", core.pc);
         println!("sp:      0x{:02X}", core.sp);
         println!("ix:      0x{:02X}", core.ix);
@@ -76,7 +77,7 @@ impl Core {
     }
 }
 
-// The load and fetch functions are short, but are separated for clarity.
+// The load, fetch and decode functions are short, but are separated for clarity.
 // Initializing the core and loading the binary data.
 fn load(data: &Vec<u8>, start: &u16) -> Core {
     let mut core: Core = Core::new();
@@ -96,20 +97,34 @@ fn fetch(core: &mut Core) {
 
 // Decoding the instruction using the prefix tree.
 fn decode(core: &mut Core, prefix_tree: &Trie) {
-    println!(
-        "{:?}",
-        prefix_tree.get_instruction(core.ir)
-    );
+    core.decoded = prefix_tree.get_function(core.ir);
+}
 
-    core.decoded = prefix_tree.get_instruction(core.ir);
+// Parses function pointer from prefix tree and executes it.
+fn execute(core: &mut Core) {
+    match core.decoded {
+        Some(func) => {
+            func(core);
+        }
+        None => {
+            panic!("Invalid opcode: {}", core.ir)
+        }
+    }
 }
 
 pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
-    fetch(&mut core);
+    // Starting to step through test binary to implement opcodes.
+    loop {
+        fetch(&mut core);
 
-    decode(&mut core, prefix_tree);
+        decode(&mut core, prefix_tree);
+        
+        execute(&mut core);
+
+        if core.pc == 0x204 { break; }
+    }
 
     println!();
     Core::core_dump(&core);
