@@ -69,7 +69,12 @@ pub fn rts(core: &mut Core) -> &mut Core { core }
 
 pub fn sec(core: &mut Core) -> &mut Core { core } 
 
-pub fn sed(core: &mut Core) -> &mut Core { core } 
+pub fn sed(core: &mut Core) -> &mut Core {
+    core.stat = core.stat | 0b00010000;
+    core.pc += 1;
+
+    core
+} 
 
 pub fn sei(core: &mut Core) -> &mut Core { core } 
 
@@ -107,7 +112,28 @@ pub fn inc(core: &mut Core) -> &mut Core { core }
 
 pub fn jmp(core: &mut Core) -> &mut Core { core } 
 
-pub fn jsr(core: &mut Core) -> &mut Core { core } 
+pub fn jsr(core: &mut Core) -> &mut Core {
+    // The return address - 1 due to how RTS works.
+    let spl: u8 = ((core.pc + 2) & 0xFF) as u8; // Lower byte
+    let sph: u8 = ((core.pc + 2) >> 8) as u8; // Higher byte
+
+    // Subroutine address.
+    let pcl: u8 = core.memory[core.pc as usize + 1]; // Lower byte
+    let pch: u8 = core.memory[core.pc as usize + 2]; // Higher byte
+
+    // Store the return address - 1 in memory. 
+    let stack_address: usize = 0x0100 | (core.sp as u16) as usize;
+    core.memory[(stack_address - 1)..=(stack_address)]
+        .copy_from_slice(&[spl, sph]);
+
+    // Adjust stack pointer to descend with the stack.
+    core.sp -= 2;
+
+    // Adjust program counter.
+    core.pc = ((pch as u16) << 8) | (pcl as u16);
+
+    core
+} 
 
 pub fn lda(core: &mut Core) -> &mut Core {
     match core.ir {
@@ -157,7 +183,26 @@ pub fn ldy(core: &mut Core) -> &mut Core {
 
 pub fn lsr(core: &mut Core) -> &mut Core { core } 
 
-pub fn ora(core: &mut Core) -> &mut Core { core } 
+pub fn ora(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x09_u8 => { // ORA IMM
+            core.acc = core.acc | core.memory[core.pc as usize + 1];
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
+        0x05_u8 => {}
+        0x15_u8 => {}
+        0x0d_u8 => {}
+        0x1d_u8 => {}
+        0x19_u8 => {}
+        0x01_u8 => {}
+        0x11_u8 => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn rol(core: &mut Core) -> &mut Core { core } 
 

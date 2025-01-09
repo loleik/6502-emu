@@ -7,7 +7,7 @@ use std::io::prelude::*;
 // Thought I needed this but it really seems like I didn't at all.
 // I'll leave it for now and remove it later.
 struct BasicSystem {
-    memory: [u8; 16384], // 16kb of memory
+    memory: [u8; 65536], // 64kb of memory
     pc: u16, // 16-bit program counter
 }
 
@@ -15,7 +15,7 @@ struct BasicSystem {
 impl BasicSystem {
     fn new(start: &u16) -> Self {
         Self {
-            memory: [0; 16384],
+            memory: [0; 65536],
             pc: *start,
         }
     }
@@ -41,6 +41,8 @@ pub fn disassembler(
     basic_system.memory[
         (basic_system.pc as usize)..(basic_system.pc as usize + data.len())
     ].copy_from_slice(data);
+
+    basic_system.pc = 0x0200;
 
     // I feel like this is messy and cumbersome.
     // Loop through all the provided data.

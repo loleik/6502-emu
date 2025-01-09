@@ -8,13 +8,14 @@ pub struct Core {
     // negative, overflow, break, decimal, interrupt disable, zero, carry, with final bit ignored
     pub pc: u16, // 16-bit program counter
     pub sp: u8, // 8-bit stack pointer
+    // The stack is conventionally at 0x0100-0x01FF in memory
     pub ix: u8, // 8-bit index register
     pub iy: u8, // 8-bit index register
     pub ir: u8, // 8-bit instruction register
     pub decoded: Option<fn(&mut Core) -> &mut Core>, // Stores opcode funciton pointer
     // Note: This doesn't align with any particular systems, it is just enough to 
     // load specific 6502 test binaries.
-    pub memory: [u8; 16384], // 16kb of memory
+    pub memory: [u8; 65536], // 64kb of memory
 }
 
 impl Core {
@@ -23,12 +24,12 @@ impl Core {
             acc: 0,
             stat: 0,
             pc: 0,
-            sp: 0,
+            sp: 0xFF,
             ix: 0,
             iy: 0,
             ir: 0,
             decoded: None,
-            memory: [0; 16384],
+            memory: [0; 65536],
         }
     }
 
