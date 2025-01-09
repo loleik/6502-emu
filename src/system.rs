@@ -1,5 +1,7 @@
 use crate::trie::Trie;
 
+use std::io::{self, Write};
+
 pub struct Core {
     pub acc: u8, // 8-bit accumulator register
     pub stat: u8, // 7-bit status register, stored as u8
@@ -34,6 +36,10 @@ impl Core {
     // No display built in to the 6502, therefore this will be useful
     // for debugging and testing later.
     pub fn core_dump(core: &Self) {
+        print!("\x1B[2J\x1B[1;1H");
+        io::stdout().flush().unwrap();
+
+
         println!("-->core dump<--");
         println!("acc:     0x{:02X}", core.acc);
         println!("stat:    0b{:08b}", core.stat);
@@ -45,7 +51,7 @@ impl Core {
         println!("decoded: {:?}", core.decoded);
 
         // Very ugly memory dump code. Needs tidying up to be useful later.
-        let mut result = Vec::new();
+        /*let mut result = Vec::new();
         let mut i = 0;
         
         while i < core.memory.len() {
@@ -73,7 +79,7 @@ impl Core {
                 print!("{}, ", result[r])
             }
         }
-        println!();
+        println!(); */
     }
 }
 
@@ -115,7 +121,7 @@ fn execute(core: &mut Core) {
 pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
-    let mut i = 0;
+    let mut i = 1;
 
     // Starting to step through test binary to implement opcodes.
     // This is getting cumbersome. Need to implement stepping through loop now.
@@ -126,11 +132,23 @@ pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
         
         execute(&mut core);
 
-        i += 1;
+        Core::core_dump(&core);
 
-        if i == 10 { break; }
+        println!("Iteration: {}", i);
+
+        print!("Press Enter to step, or type 'q' to quit: ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        if input.trim() == "q" {
+            println!("Halting emulation.");
+            break;
+        }
+
+        i += 1;
     }
 
     println!();
-    Core::core_dump(&core);
 }
