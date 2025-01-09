@@ -115,7 +115,10 @@ fn execute(core: &mut Core) {
 pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
+    let mut i = 0;
+
     // Starting to step through test binary to implement opcodes.
+    // This is getting cumbersome. Need to implement stepping through loop now.
     loop {
         fetch(&mut core);
 
@@ -123,7 +126,9 @@ pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
         
         execute(&mut core);
 
-        if core.pc == 0x204 { break; }
+        i += 1;
+
+        if i == 10 { break; }
     }
 
     println!();

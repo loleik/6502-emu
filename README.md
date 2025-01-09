@@ -7,7 +7,7 @@ Commands:
 * `disassemble`  Disassemble binaries
     * `<PATH>` Path to the target binary
     * `<START>` Start address of the binary
-* `emulator`     Emulate 6502
+* `emulate`     Emulate 6502
     * `<PATH>` Path to the target binary
 * `help`         Print this message or the help of the given subcommand(s)
 

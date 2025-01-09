@@ -28,7 +28,7 @@ fn cli() -> Command {
         )
         // Subcommand for emulator.
         .subcommand(
-            Command::new("emulator")
+            Command::new("emulate")
                 .about("Emulate 6502")
                 .arg(arg!(<PATH> "The binary to run"))
                 .arg(
@@ -73,7 +73,7 @@ fn main() -> std::io::Result<()> {
             disassembler(&data, start, &prefix_tree)?;
         }
         // Emulator subcommand.
-        Some(("emulator", sub_matches)) => {
+        Some(("emulate", sub_matches)) => {
             let path: &String = sub_matches.get_one::<String>("PATH").expect("Required");
             let start: &u16 = sub_matches.get_one::<u16>("START").expect("Required");
 

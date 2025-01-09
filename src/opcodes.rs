@@ -4,7 +4,12 @@ pub fn adc(core: &mut Core) -> &mut Core { core }
 
 pub fn and(core: &mut Core) -> &mut Core {
     match core.ir {
-        0x29_u8 => {}
+        0x29_u8 => { // AND IMM
+            core.acc = core.acc & core.memory[core.pc as usize + 1];
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
         0x25_u8 => {}
         0x35_u8 => {}
         0x2d_u8 => {}
@@ -104,14 +109,37 @@ pub fn jmp(core: &mut Core) -> &mut Core { core }
 
 pub fn jsr(core: &mut Core) -> &mut Core { core } 
 
-pub fn lda(core: &mut Core) -> &mut Core { core } 
+pub fn lda(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0xa9_u8 => { // LDA IMM
+            core.acc = core.memory[core.pc as usize + 1];
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
+        0xa5_u8 => { // LDA ZP
+            core.acc = core.memory[core.memory[core.pc as usize + 1] as usize];
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
+        0xb5_u8 => {}
+        0xad_u8 => {}
+        0xbd_u8 => {}
+        0xb9_u8 => {}
+        0xa1_u8 => {}
+        0xb1_u8 => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn ldx(core: &mut Core) -> &mut Core { core } 
 
 pub fn ldy(core: &mut Core) -> &mut Core {
     match core.ir {
-        // LDY IMM
-        0xa0_u8 => {
+        0xa0_u8 => { // LDY IMM
             core.iy = core.memory[core.pc as usize + 1];
             if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
             if ((core.iy >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
@@ -137,17 +165,39 @@ pub fn ror(core: &mut Core) -> &mut Core { core }
 
 pub fn sbc(core: &mut Core) -> &mut Core { core } 
 
-pub fn sta(core: &mut Core) -> &mut Core { core } 
+pub fn sta(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x85_u8 => { // STA ZP
+            core.memory[core.memory[core.pc as usize + 1] as usize] = core.acc;
+            core.pc += 2;
+        }
+        0x95_u8 => {}
+        0x8d_u8 => {}
+        0x9d_u8 => {}
+        0x99_u8 => {}
+        0x81_u8 => {}
+        0x91_u8 => {}
+        _ => unreachable!()
+    }
 
-pub fn stx(core: &mut Core) -> &mut Core { core } 
+    core
+} 
 
-pub fn sty(core: &mut Core) -> &mut Core {
+pub fn stx(core: &mut Core) -> &mut Core {
     match core.ir {
         0x86_u8 => {}
         0x96_u8 => {}
         0x8e_u8 => {}
-        0x84_u8 => {
-            println!("0x84 : STY ZP");
+        _ => unreachable!()
+    }
+
+    core
+} 
+
+pub fn sty(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x84_u8 => { // STY ZP
+            core.memory[core.memory[core.pc as usize + 1] as usize] = core.iy;
             core.pc += 2;
         }
         0x94_u8 => {}
