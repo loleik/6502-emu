@@ -24,7 +24,7 @@ impl Core {
             acc: 0,
             stat: 0,
             pc: 0,
-            sp: 0xFF,
+            sp: 0,
             ix: 0,
             iy: 0,
             ir: 0,
@@ -49,7 +49,8 @@ impl Core {
         println!("ix:      0x{:02X}", core.ix);
         println!("iy:      0x{:02X}", core.iy);
         println!("ir:      0x{:02X}", core.ir);
-        println!("decoded: {:?}", core.decoded);
+        // Looking at a bare function pointer isn't very helpful.
+        //println!("decoded: {:?}", core.decoded);
 
         // Very ugly memory dump code. Needs tidying up to be useful later.
         /*let mut result = Vec::new();
@@ -86,13 +87,26 @@ impl Core {
 
 // The load, fetch and decode functions are short, but are separated for clarity.
 // Initializing the core and loading the binary data.
-fn load(data: &Vec<u8>, start: &u16) -> Core {
+fn load(data: &Vec<u8>, start: &u16, exec: &u16) -> Core {
     let mut core: Core = Core::new();
 
-    core.memory[(*start as usize)..(*start as usize) + data.len()]
-    .copy_from_slice(&data);
+    let pcl: u8 = (exec & 0xFF) as u8; // Lower byte
+    let pch: u8 = (exec >> 8) as u8; // Higher byte
 
-    core.pc = *start;
+    core.sp = 0xFF; // Initialize stack pointer
+
+    // Set initial reset vector then use it to set program counter.
+    // A bit redundant, it's just symbolic I suppose for now.
+    core.memory[0xFFFC..=0xFFFD].copy_from_slice(&[pcl, pch]);
+    core.pc = ((core.memory[0xFFFD] as u16) << 8) | (core.memory[0xFFFC] as u16);
+
+    // Load the data into memory.
+    let start_index: usize = *start as usize;
+    let end_index: usize = start_index + data.len();
+
+    if end_index > core.memory.len() { panic!("ROM data exceeds memory bounds!") }
+
+    core.memory[start_index..end_index].copy_from_slice(&data);
 
     core
 }
@@ -119,8 +133,8 @@ fn execute(core: &mut Core) {
     }
 }
 
-pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
-    let mut core: Core = load(data, start);
+pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
+    let mut core: Core = load(data, start, exec);
 
     let mut i = 1;
 
