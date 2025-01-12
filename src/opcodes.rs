@@ -47,7 +47,13 @@ pub fn brk(core: &mut Core) -> &mut Core { core }
 
 pub fn clc(core: &mut Core) -> &mut Core { core } 
 
-pub fn cld(core: &mut Core) -> &mut Core { core } 
+pub fn cld(core: &mut Core) -> &mut Core {
+    core.stat = core.stat & 0b11101111;
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn cli(core: &mut Core) -> &mut Core { core } 
 
