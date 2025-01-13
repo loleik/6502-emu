@@ -56,6 +56,18 @@ pub fn and(core: &mut Core) -> &mut Core {
 pub fn asl(core: &mut Core) -> &mut Core { core } 
 
 pub fn bcc(core: &mut Core) -> &mut Core {
+    let carry_bit = core.stat >> 1;
+
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if carry_bit & 0b1 == 0 {
+        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+
+        core.pc = ((core.pc as i32) + signed_offset) as u16;
+    } else {
+        core.pc += 2;
+    }
+
     core
 } 
 
