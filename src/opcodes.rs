@@ -1,6 +1,36 @@
 use crate::system::Core;
 
-pub fn adc(core: &mut Core) -> &mut Core { core }
+pub fn adc(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x69_u8 => {}
+        0x65_u8 => { // ADC ZP
+            // Add accumulator, and zero page address, with an overflow flag.
+            let result_u: (u8, bool) = core.acc.overflowing_add(
+                core.memory[core.memory[(core.pc) as usize + 1] as usize]
+            );
+            let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
+                core.memory[core.memory[(core.pc) as usize + 1] as usize] as i8
+            );
+
+            core.acc = result_u.0; // Set accumulator to unsigned result
+
+            if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
+            if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+
+            core.pc += 2;
+        }
+        0x75_u8 => {}
+        0x6d_u8 => {}
+        0x7d_u8 => {}
+        0x79_u8 => {}
+        0x61_u8 => {}
+        0x71_u8 => {}
+        _ => unreachable!()
+    }
+
+    core
+}
 
 pub fn and(core: &mut Core) -> &mut Core {
     match core.ir {
@@ -25,7 +55,9 @@ pub fn and(core: &mut Core) -> &mut Core {
 
 pub fn asl(core: &mut Core) -> &mut Core { core } 
 
-pub fn bcc(core: &mut Core) -> &mut Core { core } 
+pub fn bcc(core: &mut Core) -> &mut Core {
+    core
+} 
 
 pub fn bcs(core: &mut Core) -> &mut Core { core } 
 
@@ -63,9 +95,30 @@ pub fn nop(core: &mut Core) -> &mut Core { core }
 
 pub fn pha(core: &mut Core) -> &mut Core { core } 
 
-pub fn pla(core: &mut Core) -> &mut Core { core } 
+pub fn pla(core: &mut Core) -> &mut Core {
+    // Set accumulator to value from the stack
+    core.acc = core.memory[(0x100 | (core.sp as u16 + 1)) as usize];
 
-pub fn php(core: &mut Core) -> &mut Core { core } 
+    // Wipe the value from the stack
+    core.memory[(0x100 | (core.sp as u16 + 1)) as usize] = 0x00;
+
+    // Increment stack pointer
+    core.sp += 1;
+
+    core.pc += 1;
+
+    core
+} 
+
+pub fn php(core: &mut Core) -> &mut Core {
+    core.memory[(0x100 | core.sp as u16) as usize] = core.stat; // Push status flags to stack
+
+    core.sp -= 1; // Descend stack pointer
+
+    core.pc += 1;
+    
+    core
+} 
 
 pub fn plp(core: &mut Core) -> &mut Core { core } 
 
@@ -96,11 +149,54 @@ pub fn tsx(core: &mut Core) -> &mut Core { core }
 
 pub fn txs(core: &mut Core) -> &mut Core { core } 
 
-pub fn cmp(core: &mut Core) -> &mut Core { core } 
+pub fn cmp(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0xC9 => { // CMP IMM
+            // Calculate Y - M
+            let val: i8 = (core.acc as i8) - (core.memory[core.pc as usize + 1] as i8);
+
+            // Check the result and set flags:
+            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+        
+            core.pc += 2;
+        }
+        0xC5 => {}
+        0xD5 => {}
+        0xCD => {}
+        0xDD => {}
+        0xD9 => {}
+        0xC1 => {}
+        0xD1 => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn cpx(core: &mut Core) -> &mut Core { core } 
 
-pub fn cpy(core: &mut Core) -> &mut Core { core } 
+pub fn cpy(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0xC0 => { // CPY IMM
+            // Calculate Y - M
+            let val: i8 = (core.iy as i8) - (core.memory[core.pc as usize + 1] as i8);
+
+            // Check the result and set flags:
+            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+        
+            core.pc += 2;
+        }
+        0xC4 => {}
+        0xCC => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn dec(core: &mut Core) -> &mut Core { core } 
 
@@ -167,7 +263,23 @@ pub fn lda(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn ldx(core: &mut Core) -> &mut Core { core } 
+pub fn ldx(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0xA2_u8 => { // LDX IMM
+            core.ix = core.memory[core.pc as usize + 1];
+            if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.ix >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
+        0xA6_u8 => {}
+        0xB6_u8 => {}
+        0xAE_u8 => {}
+        0xBE_u8 => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn ldy(core: &mut Core) -> &mut Core {
     match core.ir {

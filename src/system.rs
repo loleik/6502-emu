@@ -13,6 +13,7 @@ pub struct Core {
     pub iy: u8, // 8-bit index register
     pub ir: u8, // 8-bit instruction register
     pub decoded: Option<fn(&mut Core) -> &mut Core>, // Stores opcode funciton pointer
+    pub info: Option<String>, // Opcode infor string, mainly for core dump function.
     // Note: This doesn't align with any particular systems, it is just enough to 
     // load specific 6502 test binaries.
     pub memory: [u8; 65536], // 64kb of memory
@@ -29,6 +30,7 @@ impl Core {
             iy: 0,
             ir: 0,
             decoded: None,
+            info: None,
             memory: [0; 65536],
         }
     }
@@ -49,6 +51,7 @@ impl Core {
         println!("ix:      0x{:02X}", core.ix);
         println!("iy:      0x{:02X}", core.iy);
         println!("ir:      0x{:02X}", core.ir);
+        println!("infor:   {:?}", core.info);
         // Looking at a bare function pointer isn't very helpful.
         //println!("decoded: {:?}", core.decoded);
 
@@ -119,6 +122,7 @@ fn fetch(core: &mut Core) {
 // Decoding the instruction using the prefix tree.
 fn decode(core: &mut Core, prefix_tree: &Trie) {
     core.decoded = prefix_tree.get_function(core.ir);
+    core.info = prefix_tree.get_instruction(core.ir);
 }
 
 // Parses function pointer from prefix tree and executes it.
