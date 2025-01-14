@@ -155,15 +155,18 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
 
         println!("Iteration: {}", i);
 
-        print!("Press Enter to step, or type 'q' to quit: ");
-        io::stdout().flush().unwrap();
+        // Skipping over iterations I've looked at closely
+        if i >= 40 {
+            print!("Press Enter to step, or type 'q' to quit: ");
+            io::stdout().flush().unwrap();
 
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+            let mut input = String::new();
+            io::stdin().read_line(&mut input).unwrap();
 
-        if input.trim() == "q" {
-            println!("Halting emulation.");
-            break;
+            if input.trim() == "q" {
+                println!("Halting emulation.");
+                break;
+            }
         }
 
         i += 1;
