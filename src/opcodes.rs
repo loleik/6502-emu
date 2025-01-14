@@ -2,7 +2,23 @@ use crate::system::Core;
 
 pub fn adc(core: &mut Core) -> &mut Core {
     match core.ir {
-        0x69_u8 => {}
+        0x69_u8 => { // ADC IMM
+            // Add accumulator, and immediate memory value, with an overflow flag.
+            let result_u: (u8, bool) = core.acc.overflowing_add(
+                core.memory[(core.pc) as usize + 1]
+            );
+            let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
+                core.memory[(core.pc) as usize + 1] as i8
+            );
+
+            core.acc = result_u.0; // Set accumulator to unsigned result
+
+            if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
+            if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+
+            core.pc += 2;
+        }
         0x65_u8 => { // ADC ZP
             // Add accumulator, and zero page address, with an overflow flag.
             let result_u: (u8, bool) = core.acc.overflowing_add(
@@ -20,7 +36,28 @@ pub fn adc(core: &mut Core) -> &mut Core {
 
             core.pc += 2;
         }
-        0x75_u8 => {}
+        0x75_u8 => { // ADC ZPX
+            // Get the zero page address by adding the x register to the value in memory
+            let zp_x: (u8, bool) = core.memory[core.memory[(core.pc) as usize + 1] as usize].overflowing_add(
+                core.ix
+            );
+
+            // Add accumulator, and zero page address, with an overflow flag.
+            let result_u: (u8, bool) = core.acc.overflowing_add(
+                zp_x.0
+            );
+            let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
+                zp_x.0 as i8
+            );
+
+            core.acc = result_u.0; // Set accumulator to unsigned result
+
+            if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
+            if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+
+            core.pc += 2;
+        }
         0x6d_u8 => {}
         0x7d_u8 => {}
         0x79_u8 => {}
@@ -71,13 +108,41 @@ pub fn bcc(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn bcs(core: &mut Core) -> &mut Core { core } 
+pub fn bcs(core: &mut Core) -> &mut Core {
+    let carry_bit = core.stat >> 1;
+
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if carry_bit & 0b1 == 1 {
+        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+
+        core.pc = ((core.pc as i32) + signed_offset) as u16;
+    } else {
+        core.pc += 2;
+    }
+
+    core
+} 
 
 pub fn beq(core: &mut Core) -> &mut Core { core } 
 
 pub fn bmi(core: &mut Core) -> &mut Core { core } 
 
-pub fn bne(core: &mut Core) -> &mut Core { core } 
+pub fn bne(core: &mut Core) -> &mut Core {
+    let zero_bit = core.stat >> 2;
+
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if zero_bit & 0b1 == 0 {
+        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+
+        core.pc = ((core.pc as i32) + signed_offset) as u16;
+    } else {
+        core.pc += 2;
+    }
+
+    core
+} 
 
 pub fn bpl(core: &mut Core) -> &mut Core { core } 
 
@@ -136,9 +201,30 @@ pub fn plp(core: &mut Core) -> &mut Core { core }
 
 pub fn rti(core: &mut Core) -> &mut Core { core } 
 
-pub fn rts(core: &mut Core) -> &mut Core { core } 
+pub fn rts(core: &mut Core) -> &mut Core {
+    // Get the new PC value from the stack.
+    let stack_address: usize = 0x0100 | (core.sp as u16) as usize;
 
-pub fn sec(core: &mut Core) -> &mut Core { core } 
+    let pcl: u16 = core.memory[stack_address + 1] as u16;
+    let pch: u16 = (core.memory[stack_address + 2] as u16) << 8;
+
+    // Set the new PC value.
+    core.pc = pch | pcl;
+
+    // Adjust stack pointer to ascend with the stack.
+    core.sp += 2;
+
+    core.pc += 1;
+
+    core
+} 
+
+pub fn sec(core: &mut Core) -> &mut Core {
+    core.stat = core.stat | 0b00000010;
+    core.pc += 1;
+
+    core
+} 
 
 pub fn sed(core: &mut Core) -> &mut Core {
     core.stat = core.stat | 0b00010000;
@@ -164,7 +250,7 @@ pub fn txs(core: &mut Core) -> &mut Core { core }
 pub fn cmp(core: &mut Core) -> &mut Core {
     match core.ir {
         0xC9 => { // CMP IMM
-            // Calculate Y - M
+            // Calculate A - M
             let val: i8 = (core.acc as i8) - (core.memory[core.pc as usize + 1] as i8);
 
             // Check the result and set flags:
@@ -174,7 +260,19 @@ pub fn cmp(core: &mut Core) -> &mut Core {
         
             core.pc += 2;
         }
-        0xC5 => {}
+        0xC5 => { // CMP ZP
+            let zp: i8 = core.memory[core.memory[(core.pc as usize) + 1] as usize] as i8;
+
+            // Calculate A - M
+            let val: i8 = (core.acc as i8) - zp;
+
+            // Check the result and set flags:
+            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+        
+            core.pc += 2;
+        }
         0xD5 => {}
         0xCD => {}
         0xDD => {}
@@ -216,11 +314,44 @@ pub fn dex(core: &mut Core) -> &mut Core { core }
 
 pub fn dey(core: &mut Core) -> &mut Core { core } 
 
-pub fn inx(core: &mut Core) -> &mut Core { core } 
+pub fn inx(core: &mut Core) -> &mut Core {
+    core.ix += 1;
+
+    if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+    if ((core.ix >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn iny(core: &mut Core) -> &mut Core { core } 
 
-pub fn eor(core: &mut Core) -> &mut Core { core } 
+pub fn eor(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x49 => {}
+        0x45 => { // EOR ZP
+            let zp: u8 = core.memory[core.memory[(core.pc) as usize + 1] as usize];
+
+            // Calculate A ^ M
+            core.acc = core.acc ^ zp;
+
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+
+            core.pc += 2;
+        }
+        0x55 => {}
+        0x4D => {}
+        0x5D => {}
+        0x59 => {}
+        0x41 => {}
+        0x51 => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn inc(core: &mut Core) -> &mut Core { core } 
 
@@ -321,7 +452,13 @@ pub fn ora(core: &mut Core) -> &mut Core {
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
-        0x05_u8 => {}
+        0x05_u8 => { // ORA ZP
+            let target_zp = core.memory[core.memory[core.pc as usize + 1] as usize];
+            core.acc = core.acc | target_zp;
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+            core.pc += 2;
+        }
         0x15_u8 => {}
         0x0d_u8 => {}
         0x1d_u8 => {}
