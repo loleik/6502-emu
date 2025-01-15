@@ -140,6 +140,7 @@ pub fn bne(core: &mut Core) -> &mut Core {
         let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
 
         core.pc = ((core.pc as i32) + signed_offset) as u16;
+        core.pc += 2;
     } else {
         core.pc += 2;
     }
@@ -147,7 +148,22 @@ pub fn bne(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn bpl(core: &mut Core) -> &mut Core { core } 
+pub fn bpl(core: &mut Core) -> &mut Core {
+    let negative_bit = core.stat >> 7;
+
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if negative_bit & 0b1 == 0 {
+        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+
+        core.pc = ((core.pc as i32) + signed_offset) as u16;
+        core.pc += 2;
+    } else {
+        core.pc += 2;
+    }
+
+    core
+} 
 
 pub fn bvc(core: &mut Core) -> &mut Core { core } 
 
@@ -155,7 +171,10 @@ pub fn bvs(core: &mut Core) -> &mut Core { core }
 
 pub fn bit(core: &mut Core) -> &mut Core { core } 
 
-pub fn brk(core: &mut Core) -> &mut Core { core } 
+pub fn brk(core: &mut Core) -> &mut Core {
+    // Temporary solution
+    panic!("BRK!")
+} 
 
 pub fn clc(core: &mut Core) -> &mut Core { core } 
 
@@ -267,7 +286,7 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             let zp: i8 = core.memory[core.memory[(core.pc as usize) + 1] as usize] as i8;
 
             // Calculate A - M
-            let val: i8 = (core.acc as i8) - zp;
+            let val: i8 = (core.acc as i8).overflowing_sub(zp).0;
 
             // Check the result and set flags:
             if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
@@ -315,7 +334,16 @@ pub fn dec(core: &mut Core) -> &mut Core { core }
 
 pub fn dex(core: &mut Core) -> &mut Core { core } 
 
-pub fn dey(core: &mut Core) -> &mut Core { core } 
+pub fn dey(core: &mut Core) -> &mut Core {
+    core.iy -= 1;
+
+    if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+    if ((core.iy >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn inx(core: &mut Core) -> &mut Core {
     core.ix += 1;
@@ -356,7 +384,26 @@ pub fn eor(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn inc(core: &mut Core) -> &mut Core { core } 
+pub fn inc(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0xE6 => { // INC ZP
+            let zp: u8 = core.memory[core.memory[core.pc as usize + 1] as usize];
+
+            core.memory[zp as usize] += 1;
+
+            if core.memory[zp as usize] == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if ((core.memory[zp as usize] >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
+
+            core.pc += 2
+        }
+        0xF6 => {}
+        0xEE => {}
+        0xFE => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn jmp(core: &mut Core) -> &mut Core { core } 
 
@@ -502,7 +549,27 @@ pub fn sbc(core: &mut Core) -> &mut Core {
 
             core.pc += 2;
         }
-        0xF5_u8 => {}
+        0xF5_u8 => { // SBC ZPX
+            // Get the zero page address by adding the x register to the value in memory
+            let zp_x: (u8, bool) = core.memory[core.memory[(core.pc) as usize + 1] as usize].overflowing_add(
+                core.ix
+            );
+            // Subtract accumulator, and zero page address, with an overflow flag.
+            let result_u: (u8, bool) = core.acc.overflowing_sub(
+                zp_x.0
+            ).0.overflowing_sub(carry_bit);
+            let result_i: (i8, bool) = (core.acc as i8).overflowing_sub(
+                zp_x.0 as i8
+            ).0.overflowing_sub(carry_bit as i8);
+
+            core.acc = result_u.0; // Set accumulator to unsigned result
+
+            if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
+            if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+
+            core.pc += 2;
+        }
         0xED_u8 => {}
         0xFD_u8 => {}
         0xF9_u8 => {}
