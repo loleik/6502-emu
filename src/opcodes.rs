@@ -116,9 +116,10 @@ pub fn bcs(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if carry_bit & 0b1 == 1 {
-        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = ((core.pc as i32) + signed_offset) as u16;
+        core.pc = ((core.pc) as i16 + signed_offset as i16) as u16;
+        core.pc += 2;
     } else {
         core.pc += 2;
     }

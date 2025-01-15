@@ -132,7 +132,7 @@ fn execute(core: &mut Core) {
             func(core);
         }
         None => {
-            panic!("Invalid opcode: {}", core.ir)
+            panic!("Invalid opcode: {:02X}", core.ir)
         }
     }
 }
@@ -156,7 +156,7 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
         println!("Iteration: {}", i);
 
         // Skipping over iterations I've looked at closely
-        if i >= 99 {
+        if i >= 97 {
             print!("Press Enter to step, or type 'q' to quit: ");
             io::stdout().flush().unwrap();
 
