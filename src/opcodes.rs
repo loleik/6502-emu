@@ -1,15 +1,17 @@
 use crate::system::Core;
 
 pub fn adc(core: &mut Core) -> &mut Core {
+    let carry_bit: u8 = core.stat >> 1;
+
     match core.ir {
         0x69_u8 => { // ADC IMM
             // Add accumulator, and immediate memory value, with an overflow flag.
             let result_u: (u8, bool) = core.acc.overflowing_add(
                 core.memory[(core.pc) as usize + 1]
-            );
+            ).0.overflowing_add(carry_bit);
             let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
                 core.memory[(core.pc) as usize + 1] as i8
-            );
+            ).0.overflowing_add(carry_bit as i8);
 
             core.acc = result_u.0; // Set accumulator to unsigned result
 
@@ -23,10 +25,10 @@ pub fn adc(core: &mut Core) -> &mut Core {
             // Add accumulator, and zero page address, with an overflow flag.
             let result_u: (u8, bool) = core.acc.overflowing_add(
                 core.memory[core.memory[(core.pc) as usize + 1] as usize]
-            );
+            ).0.overflowing_add(carry_bit);
             let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
                 core.memory[core.memory[(core.pc) as usize + 1] as usize] as i8
-            );
+            ).0.overflowing_add(carry_bit as i8);
 
             core.acc = result_u.0; // Set accumulator to unsigned result
 
@@ -45,10 +47,10 @@ pub fn adc(core: &mut Core) -> &mut Core {
             // Add accumulator, and zero page address, with an overflow flag.
             let result_u: (u8, bool) = core.acc.overflowing_add(
                 zp_x.0
-            );
+            ).0.overflowing_add(carry_bit);
             let result_i: (i8, bool) = (core.acc as i8).overflowing_add(
                 zp_x.0 as i8
-            );
+            ).0.overflowing_add(carry_bit as i8);
 
             core.acc = result_u.0; // Set accumulator to unsigned result
 
@@ -475,7 +477,40 @@ pub fn rol(core: &mut Core) -> &mut Core { core }
 
 pub fn ror(core: &mut Core) -> &mut Core { core } 
 
-pub fn sbc(core: &mut Core) -> &mut Core { core } 
+pub fn sbc(core: &mut Core) -> &mut Core {
+    let carry_bit: u8 = core.stat >> 1;
+
+    match core.ir {
+        0xE9_u8 => {}
+        0xE5_u8 => { // SBC ZP
+            let zp: u8 = core.memory[core.memory[core.pc as usize + 1] as usize];
+
+            // Subtract accumulator, and zero page address, with an overflow flag.
+            let result_u: (u8, bool) = core.acc.overflowing_sub(
+                zp
+            ).0.overflowing_sub(carry_bit);
+            let result_i: (i8, bool) = (core.acc as i8).overflowing_sub(
+                zp as i8
+            ).0.overflowing_sub(carry_bit as i8);
+
+            core.acc = result_u.0; // Set accumulator to unsigned result
+
+            if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
+            if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+
+            core.pc += 2;
+        }
+        0xF5_u8 => {}
+        0xED_u8 => {}
+        0xFD_u8 => {}
+        0xF9_u8 => {}
+        0xE1_u8 => {}
+        0xF1_u8 => {}
+        _ => unreachable!()
+    }
+    core
+} 
 
 pub fn sta(core: &mut Core) -> &mut Core {
     match core.ir {

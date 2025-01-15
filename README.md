@@ -26,3 +26,8 @@ Some resources I am finding helpful:
 * [Masswerk 6502 Instruction Reference](https://www.masswerk.at/6502/6502_instruction_set.html), similar to the Nesdev resource but written by someone else.
 * [6502 Wikipedia Article](https://en.wikipedia.org/wiki/MOS_Technology_6502), bit obvious I know.
 * [6502.org Forum](http://forum.6502.org/), the website as a whole is helpful, but particularly the forum.
+
+## Possible Issues
+These are things that I am worried about, but for now they may be fine. This list is mainly for me to have places to look if things go wrong later.
+* `SBC` and `ADC` functions. Specifically overflow and carry flag handling.
+* Memory addressing order.
