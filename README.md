@@ -31,3 +31,4 @@ Some resources I am finding helpful:
 These are things that I am worried about, but for now they may be fine. This list is mainly for me to have places to look if things go wrong later.
 * `SBC` and `ADC` functions. Specifically overflow and carry flag handling.
 * Memory addressing order.
+* Program counter behaviour in BCS.
