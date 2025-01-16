@@ -189,7 +189,7 @@ pub fn brk(core: &mut Core) -> &mut Core {
     // Descend stack pointer.
     core.sp -= 3;
 
-    // Set PC to interrupt vector.
+    // Set PC to interrupt vector. Just symbolic for now.
     let pcl: u16 = core.memory[0xfffe] as u16;
     let pch: u16 = (core.memory[0xffff] as u16) << 8;
 
@@ -291,7 +291,13 @@ pub fn tya(core: &mut Core) -> &mut Core { core }
 
 pub fn tsx(core: &mut Core) -> &mut Core { core } 
 
-pub fn txs(core: &mut Core) -> &mut Core { core } 
+pub fn txs(core: &mut Core) -> &mut Core {
+    core.sp = core.ix;
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn cmp(core: &mut Core) -> &mut Core {
     match core.ir {
