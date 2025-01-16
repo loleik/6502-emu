@@ -5,7 +5,7 @@ use std::io::{self, Write};
 pub struct Core {
     pub acc: u8, // 8-bit accumulator register
     pub stat: u8, // 7-bit status register, stored as u8
-    // negative, overflow, break, decimal, interrupt disable, zero, carry, with final bit ignored
+    // Negative, Overflow, Ignored, Break, Decimal, Interrupt, Zero, Carry.
     pub pc: u16, // 16-bit program counter
     pub sp: u8, // 8-bit stack pointer
     // The stack is conventionally at 0x0100-0x01FF in memory

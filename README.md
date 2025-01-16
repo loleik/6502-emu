@@ -32,3 +32,5 @@ These are things that I am worried about, but for now they may be fine. This lis
 * `SBC` and `ADC` functions. Specifically overflow and carry flag handling.
 * Memory addressing order.
 * Program counter behaviour in BCS.
+* Break flag behaviour.
+* Reordered status bits to be in line with documentation.

@@ -1,7 +1,7 @@
 use crate::system::Core;
 
 pub fn adc(core: &mut Core) -> &mut Core {
-    let carry_bit: u8 = core.stat >> 1;
+    let carry_bit: u8 = core.stat;
 
     match core.ir {
         0x69_u8 => { // ADC IMM
@@ -17,7 +17,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
 
             if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
             if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
-            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
 
             core.pc += 2;
         }
@@ -34,7 +34,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
 
             if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
             if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
-            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
 
             core.pc += 2;
         }
@@ -56,7 +56,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
 
             if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
             if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
-            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
 
             core.pc += 2;
         }
@@ -75,7 +75,7 @@ pub fn and(core: &mut Core) -> &mut Core {
     match core.ir {
         0x29_u8 => { // AND IMM
             core.acc = core.acc & core.memory[core.pc as usize + 1];
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -95,7 +95,7 @@ pub fn and(core: &mut Core) -> &mut Core {
 pub fn asl(core: &mut Core) -> &mut Core { core } 
 
 pub fn bcc(core: &mut Core) -> &mut Core {
-    let carry_bit = core.stat >> 1;
+    let carry_bit = core.stat;
 
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
@@ -111,7 +111,7 @@ pub fn bcc(core: &mut Core) -> &mut Core {
 } 
 
 pub fn bcs(core: &mut Core) -> &mut Core {
-    let carry_bit = core.stat >> 1;
+    let carry_bit = core.stat;
 
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
@@ -132,7 +132,7 @@ pub fn beq(core: &mut Core) -> &mut Core { core }
 pub fn bmi(core: &mut Core) -> &mut Core { core } 
 
 pub fn bne(core: &mut Core) -> &mut Core {
-    let zero_bit = core.stat >> 2;
+    let zero_bit = core.stat >> 1;
 
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
@@ -172,14 +172,36 @@ pub fn bvs(core: &mut Core) -> &mut Core { core }
 pub fn bit(core: &mut Core) -> &mut Core { core } 
 
 pub fn brk(core: &mut Core) -> &mut Core {
-    // Temporary solution
-    panic!("BRK!")
+    // Grab the full stack pointer address.
+    let stack_address: usize = 0x0100 | (core.sp as u16) as usize;
+
+    // Get the bytes of the return address, PC + 2.
+    let spcl = (core.pc + 2 & 0xFF00) as u8;
+    let spch = (core.pc + 2 >> 8) as u8;
+
+    // Set the break flag.
+    core.stat = core.stat | 0b00010000;
+
+    // Store the status register and return address in the stack.
+    core.memory[stack_address - 2..=stack_address]
+        .copy_from_slice(&[core.stat, spcl, spch]);
+
+    // Descend stack pointer.
+    core.sp -= 3;
+
+    // Set PC to interrupt vector.
+    let pcl: u16 = core.memory[0xfffe] as u16;
+    let pch: u16 = (core.memory[0xffff] as u16) << 8;
+
+    core.pc = pch | pcl;
+
+    core
 } 
 
 pub fn clc(core: &mut Core) -> &mut Core { core } 
 
 pub fn cld(core: &mut Core) -> &mut Core {
-    core.stat = core.stat & 0b11101111;
+    core.stat = core.stat & 0b11110111; // Clear decimal flag
 
     core.pc += 1;
 
@@ -210,7 +232,8 @@ pub fn pla(core: &mut Core) -> &mut Core {
 } 
 
 pub fn php(core: &mut Core) -> &mut Core {
-    core.memory[(0x100 | core.sp as u16) as usize] = core.stat; // Push status flags to stack
+    // Set break flag and push status to stack.
+    core.memory[(0x100 | core.sp as u16) as usize] = core.stat | 0b00010000;
 
     core.sp -= 1; // Descend stack pointer
 
@@ -242,14 +265,15 @@ pub fn rts(core: &mut Core) -> &mut Core {
 } 
 
 pub fn sec(core: &mut Core) -> &mut Core {
-    core.stat = core.stat | 0b00000010;
+    // Set carry flag
+    core.stat = core.stat | 0b00000001;
     core.pc += 1;
 
     core
 } 
 
 pub fn sed(core: &mut Core) -> &mut Core {
-    core.stat = core.stat | 0b00010000;
+    core.stat = core.stat | 0b00001000;
     core.pc += 1;
 
     core
@@ -276,8 +300,8 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             let val: i8 = (core.acc as i8) - (core.memory[core.pc as usize + 1] as i8);
 
             // Check the result and set flags:
-            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
-            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if val >= 0 { core.stat = core.stat | 0b00000001 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
             if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
         
             core.pc += 2;
@@ -289,8 +313,8 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             let val: i8 = (core.acc as i8).overflowing_sub(zp).0;
 
             // Check the result and set flags:
-            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
-            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if val >= 0 { core.stat = core.stat | 0b00000001 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
             if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
         
             core.pc += 2;
@@ -316,8 +340,8 @@ pub fn cpy(core: &mut Core) -> &mut Core {
             let val: i8 = (core.iy as i8) - (core.memory[core.pc as usize + 1] as i8);
 
             // Check the result and set flags:
-            if val >= 0 { core.stat = core.stat | 0b00000010 } // Carry flag
-            if val == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if val >= 0 { core.stat = core.stat | 0b00000001 } // Carry flag
+            if val == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
             if ((val >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
         
             core.pc += 2;
@@ -337,7 +361,7 @@ pub fn dex(core: &mut Core) -> &mut Core { core }
 pub fn dey(core: &mut Core) -> &mut Core {
     core.iy -= 1;
 
-    if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+    if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
     if ((core.iy >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
 
     core.pc += 1;
@@ -348,7 +372,7 @@ pub fn dey(core: &mut Core) -> &mut Core {
 pub fn inx(core: &mut Core) -> &mut Core {
     core.ix += 1;
 
-    if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+    if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
     if ((core.ix >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
 
     core.pc += 1;
@@ -367,7 +391,7 @@ pub fn eor(core: &mut Core) -> &mut Core {
             // Calculate A ^ M
             core.acc = core.acc ^ zp;
 
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
 
             core.pc += 2;
@@ -391,7 +415,7 @@ pub fn inc(core: &mut Core) -> &mut Core {
 
             core.memory[zp as usize] += 1;
 
-            if core.memory[zp as usize] == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.memory[zp as usize] == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.memory[zp as usize] >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
 
             core.pc += 2
@@ -434,13 +458,13 @@ pub fn lda(core: &mut Core) -> &mut Core {
     match core.ir {
         0xa9_u8 => { // LDA IMM
             core.acc = core.memory[core.pc as usize + 1];
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
         0xa5_u8 => { // LDA ZP
             core.acc = core.memory[core.memory[core.pc as usize + 1] as usize];
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -460,7 +484,7 @@ pub fn ldx(core: &mut Core) -> &mut Core {
     match core.ir {
         0xA2_u8 => { // LDX IMM
             core.ix = core.memory[core.pc as usize + 1];
-            if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.ix >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -478,7 +502,7 @@ pub fn ldy(core: &mut Core) -> &mut Core {
     match core.ir {
         0xa0_u8 => { // LDY IMM
             core.iy = core.memory[core.pc as usize + 1];
-            if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.iy >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -498,14 +522,14 @@ pub fn ora(core: &mut Core) -> &mut Core {
     match core.ir {
         0x09_u8 => { // ORA IMM
             core.acc = core.acc | core.memory[core.pc as usize + 1];
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
         0x05_u8 => { // ORA ZP
             let target_zp = core.memory[core.memory[core.pc as usize + 1] as usize];
             core.acc = core.acc | target_zp;
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000100 } // Set zero flag
+            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -526,7 +550,7 @@ pub fn rol(core: &mut Core) -> &mut Core { core }
 pub fn ror(core: &mut Core) -> &mut Core { core } 
 
 pub fn sbc(core: &mut Core) -> &mut Core {
-    let carry_bit: u8 = core.stat >> 1;
+    let carry_bit: u8 = core.stat;
 
     match core.ir {
         0xE9_u8 => {}
@@ -545,7 +569,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
 
             if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
             if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
-            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
 
             core.pc += 2;
         }
@@ -566,7 +590,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
 
             if result_u.1 { core.stat = core.stat | 0b01000000 } // Overflow flag
             if result_i.1 { core.stat = core.stat | 0b10000000 } // Negative flag
-            if core.acc == 0 { core.stat = core.stat | 0b00000100 } // Zero flag
+            if core.acc == 0 { core.stat = core.stat | 0b00000010 } // Zero flag
 
             core.pc += 2;
         }
