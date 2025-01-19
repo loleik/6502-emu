@@ -39,9 +39,8 @@ impl Core {
     // No display built in to the 6502, therefore this will be useful
     // for debugging and testing later.
     pub fn core_dump(core: &Self) {
-        print!("\x1B[2J\x1B[1;1H");
-        io::stdout().flush().unwrap();
-
+        //print!("\x1B[2J\x1B[1;1H");
+        //io::stdout().flush().unwrap();
 
         println!("-->core dump<--");
         println!("acc:     0x{:02X}", core.acc);
@@ -142,34 +141,76 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
 
     let mut i = 1;
 
-    // Starting to step through test binary to implement opcodes.
-    // This is getting cumbersome. Need to implement stepping through loop now.
+    print!("\x1B[2J\x1B[1;1H");
+
+    // Stupid fake shell. I did like the idea, so I will expand on it.
+    // Maybe move the emulation loop to another function for clarity as it expands later.
     loop {
-        fetch(&mut core);
+        print!("> ");
 
-        decode(&mut core, prefix_tree);
-        
-        execute(&mut core);
+        io::stdout().flush().unwrap();
 
-        Core::core_dump(&core);
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
 
-        println!("Iteration: {}", i);
+        match input.trim() {
+            "exec" | "EXEC" => {
+                // Starting to step through test binary to implement opcodes.
+                // This is getting cumbersome. Need to implement stepping through loop now.
+                loop {
+                    fetch(&mut core);
 
-        // Skipping over iterations I've looked at closely
-        if i >= 1 {
-            print!("Press Enter to step, or type 'q' to quit: ");
-            io::stdout().flush().unwrap();
+                    decode(&mut core, prefix_tree);
+                    
+                    execute(&mut core);
 
-            let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
+                    print!("\x1B[11A");
+                    Core::core_dump(&core);
+                    println!("Iteration: {}", i);
+                    io::stdout().flush().unwrap();
 
-            if input.trim() == "q" {
-                println!("Halting emulation.");
+                    // Skipping over iterations I've looked at closely
+                    if core.stat & 0b00010000 != 0b00010000 {
+                        print!("Press Enter to step, or type 'q' to quit: ");
+                        io::stdout().flush().unwrap();
+
+                        let mut input = String::new();
+                        io::stdin().read_line(&mut input).unwrap();
+
+                        if input.trim() == "q" {
+                            println!("Halting emulation.");
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+
+                    i += 1;
+                }
+            },
+            "quit" | "QUIT" | "q" => {
+                println!("Exiting...");
                 break;
+            },
+            "dump" | "DUMP" => {
+                println!("Memory dump not yet implemented.");
+            },
+            "clear" | "CLEAR" => {
+                print!("\x1B[2J\x1B[1;1H");
+            }
+            "help" | "HELP" | "h" => {
+                println!("Welcome to a silly fake shell!");
+                println!("Commands:");
+                println!(" + exec, EXEC - Runs the passed binary with set parameters");
+                println!(" + dump, DUMP - Will eventually dump memory or parts of it");
+                println!(" + clear, CLEAR - Clear the screen");
+                println!(" + quit, QUIT, q - Quit, pretty self explanatory");
+                println!(" + help, HELP, h - Prints this message");
+            },
+            _ => {
+                println!("Unrecognized input: {}", input.trim());
             }
         }
-
-        i += 1;
     }
 
     println!();
