@@ -185,10 +185,48 @@ fn help_out(args: Option<&str>) {
     }
 }
 
+// Separated the main loop for clarity
+fn main_loop(core: &mut Core, prefix_tree: &Trie) {
+    let mut i = 1;
+
+    // Starting to step through test binary to implement opcodes.
+    // This is getting cumbersome. Need to implement stepping through loop now.
+    loop {
+        fetch(core);
+
+        decode(core, prefix_tree);
+        
+        execute(core);
+
+        print!("\x1B[11A");
+        Core::core_dump(&core);
+        println!("Iteration: {}", i);
+        io::stdout().flush().unwrap();
+
+        // Skipping over iterations I've looked at closely
+        if core.stat & 0b00010000 != 0b00010000 {
+            print!("Press Enter to step, or type 'q' to quit: ");
+            io::stdout().flush().unwrap();
+
+            let mut input = String::new();
+            io::stdin().read_line(&mut input).unwrap();
+
+            if input.trim() == "q" {
+                println!("Halting emulation.");
+                break;
+            }
+        } else {
+            println!();
+            break;
+        }
+
+        i += 1;
+    }
+}
+
 pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
-    let mut i = 1;
 
     print!("\x1B[2J\x1B[1;1H");
 
@@ -228,39 +266,7 @@ pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
 
                 print!("\x1B[2J\x1B[1;1H");
 
-                // Starting to step through test binary to implement opcodes.
-                // This is getting cumbersome. Need to implement stepping through loop now.
-                loop {
-                    fetch(&mut core);
-
-                    decode(&mut core, prefix_tree);
-                    
-                    execute(&mut core);
-
-                    print!("\x1B[11A");
-                    Core::core_dump(&core);
-                    println!("Iteration: {}", i);
-                    io::stdout().flush().unwrap();
-
-                    // Skipping over iterations I've looked at closely
-                    if core.stat & 0b00010000 != 0b00010000 {
-                        print!("Press Enter to step, or type 'q' to quit: ");
-                        io::stdout().flush().unwrap();
-
-                        let mut input = String::new();
-                        io::stdin().read_line(&mut input).unwrap();
-
-                        if input.trim() == "q" {
-                            println!("Halting emulation.");
-                            break;
-                        }
-                    } else {
-                        println!();
-                        break;
-                    }
-
-                    i += 1;
-                }
+                main_loop(&mut core, prefix_tree);
             },
             "quit" | "QUIT" | "q" => {
                 println!("Exiting...");
