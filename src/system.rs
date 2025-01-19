@@ -89,18 +89,10 @@ impl Core {
 
 // The load, fetch and decode functions are short, but are separated for clarity.
 // Initializing the core and loading the binary data.
-fn load(data: &Vec<u8>, start: &u16, exec: &u16) -> Core {
+fn load(data: &Vec<u8>, start: &u16) -> Core {
     let mut core: Core = Core::new();
 
-    let pcl: u8 = (exec & 0xFF) as u8; // Lower byte
-    let pch: u8 = (exec >> 8) as u8; // Higher byte
-
     core.sp = 0xFF; // Initialize stack pointer
-
-    // Set initial reset vector then use it to set program counter.
-    // A bit redundant, it's just symbolic I suppose for now.
-    core.memory[0xFFFC..=0xFFFD].copy_from_slice(&[pcl, pch]);
-    core.pc = ((core.memory[0xFFFD] as u16) << 8) | (core.memory[0xFFFC] as u16);
 
     // Load the data into memory.
     let start_index: usize = *start as usize;
@@ -136,12 +128,72 @@ fn execute(core: &mut Core) {
     }
 }
 
-pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
-    let mut core: Core = load(data, start, exec);
+fn set_pc(core: &mut Core, target: u16) -> &mut Core {
+    let pcl: u8 = (target & 0xFF) as u8; // Lower byte
+    let pch: u8 = (target >> 8) as u8; // Higher byte
+
+    // Set initial reset vector then use it to set program counter.
+    // A bit redundant, it's just symbolic I suppose for now.
+    core.memory[0xFFFC..=0xFFFD].copy_from_slice(&[pcl, pch]);
+    core.pc = ((core.memory[0xFFFD] as u16) << 8) | (core.memory[0xFFFC] as u16);
+
+    core
+}
+
+fn parse_hex(start: &str) -> Result<u16, String> {
+    if let Some(hex) = start.strip_prefix("0x") {
+        u16::from_str_radix(hex, 16)
+            .map_err(|e| format!("Invalid hex value: {e}"))
+    } else {
+        Err("Value must start with 0x".to_string())
+    }
+}
+
+fn help_out(args: Option<&str>) {
+    match args {
+        Some("exec") | Some("EXEC") => {
+            println!("exec <target>, EXEC <target> :");
+            println!(" + Runs the passed binary starting at the given address.");
+            println!(" + <target> must be a hexadecimal address starting with 0x.");
+            println!("Example: exec 0x200, exec 0x0200, exec 0x0");
+        }
+        Some("dump") | Some("DUMP") => {
+            println!("dump, DUMP :");
+            println!("Not currently implemented. This will be used for inspecting memory.")
+        }
+        Some("clear") | Some("CLEAR") => {
+            println!("clear, CLEAR :");
+            println!("Clears the screen.")
+        }
+        Some("quit") | Some("QUIT") | Some("q") => {
+            println!("quit, QUIT, q :");
+            println!("Quits the program.")
+        }
+        Some(_) => {
+            println!("Unrecognized argument {args:?}")
+        }
+        None => {
+            println!("Welcome to a silly fake shell!");
+            println!("Commands:");
+            println!(" + exec, EXEC - Runs the passed binary starting at the given address.");
+            println!(" + dump, DUMP - Will eventually dump memory or parts of it.");
+            println!(" + clear, CLEAR - Clear the screen.");
+            println!(" + quit, QUIT, q - Quit, pretty self explanatory.");
+            println!(" + help, HELP, h - Prints this message.");
+            println!("Run `help <COMMAND> for more information.`")
+        }
+    }
+}
+
+pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
+    let mut core: Core = load(data, start);
 
     let mut i = 1;
 
     print!("\x1B[2J\x1B[1;1H");
+
+    println!("Welcome to the fake shell!");
+    println!("Run `help` to see the commands!");
 
     // Stupid fake shell. I did like the idea, so I will expand on it.
     // Maybe move the emulation loop to another function for clarity as it expands later.
@@ -152,9 +204,30 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
+        let input_vec = input.split_whitespace().collect::<Vec<_>>();
 
-        match input.trim() {
+        if input_vec.len() == 0 { continue }
+
+        match input_vec[0].trim() {
             "exec" | "EXEC" => {
+                if input_vec.len() == 1 {
+                    help_out(Some("exec"));
+                    continue
+                } else {
+                    let target = parse_hex(input_vec[1]);
+                    match target {
+                        Ok(val) => {
+                            set_pc(&mut core, val);
+                        }
+                        Err(error) => {
+                            println!("{error}");
+                            continue;
+                        }
+                    }
+                }
+
+                print!("\x1B[2J\x1B[1;1H");
+
                 // Starting to step through test binary to implement opcodes.
                 // This is getting cumbersome. Need to implement stepping through loop now.
                 loop {
@@ -182,6 +255,7 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
                             break;
                         }
                     } else {
+                        println!();
                         break;
                     }
 
@@ -192,26 +266,14 @@ pub fn emulator(data: &Vec<u8>, start: &u16, exec: &u16, prefix_tree: &Trie) {
                 println!("Exiting...");
                 break;
             },
-            "dump" | "DUMP" => {
-                println!("Memory dump not yet implemented.");
-            },
-            "clear" | "CLEAR" => {
-                print!("\x1B[2J\x1B[1;1H");
-            }
+            "dump" | "DUMP" => { println!("Memory dump not yet implemented."); },
+            "clear" | "CLEAR" => { print!("\x1B[2J\x1B[1;1H"); }
             "help" | "HELP" | "h" => {
-                println!("Welcome to a silly fake shell!");
-                println!("Commands:");
-                println!(" + exec, EXEC - Runs the passed binary with set parameters");
-                println!(" + dump, DUMP - Will eventually dump memory or parts of it");
-                println!(" + clear, CLEAR - Clear the screen");
-                println!(" + quit, QUIT, q - Quit, pretty self explanatory");
-                println!(" + help, HELP, h - Prints this message");
+                if input_vec.len() == 1 { help_out(None); }
+                else if input_vec.len() == 2 { help_out(Some(input_vec[1])); }
+                else { println!("Please provide a maximum of one argument.") }
             },
-            _ => {
-                println!("Unrecognized input: {}", input.trim());
-            }
+            _ => { println!("Unrecognized input: {:?}", input_vec); }
         }
     }
-
-    println!();
 }

@@ -35,10 +35,6 @@ fn cli() -> Command {
                     arg!(<LOAD> "Start address for the program counter")
                         .value_parser(parse_hex)
                 )
-                .arg(
-                    arg!(<EXEC> "Address to start execution at")
-                        .value_parser(parse_hex)
-                )
                 .arg_required_else_help(true)
         )
 }
@@ -80,13 +76,11 @@ fn main() -> std::io::Result<()> {
         Some(("emulate", sub_matches)) => {
             let path: &String = sub_matches.get_one::<String>("PATH").expect("Required");
             let load: &u16 = sub_matches.get_one::<u16>("LOAD").expect("Required");
-            let exec: &u16 = sub_matches.get_one::<u16>("EXEC").expect("Required");
 
             println!(
-                "Running {} : 0x{:04X} : 0x{:04X}",
+                "Running {} : 0x{:04X}",
                 path,
                 load,
-                exec
             );
 
             let data: Vec<u8> = match fs::read(path) {
@@ -94,7 +88,7 @@ fn main() -> std::io::Result<()> {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
 
-            emulator(&data, load, exec, &prefix_tree);
+            emulator(&data, load, &prefix_tree);
         }
         _ => {unreachable!()}
     }

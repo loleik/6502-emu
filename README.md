@@ -7,10 +7,9 @@ Commands:
 * `disassemble`  Disassemble binaries
     * `<PATH>` Path to the target binary
     * `<START>` Start address of the binary
-* `emulate`     Emulate 6502
+* `emulate`     Emulate 6502 - Starts a fake shell, run `help` for to show the help message.
     * `<PATH>` Path to the target binary
     * `<LOAD>` Start address for storing the program in memory
-    * `<EXEC>` Start address for execution
 * `help`         Print this message or the help of the given subcommand(s)
 
 Options:
