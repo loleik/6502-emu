@@ -88,7 +88,7 @@ fn main() -> std::io::Result<()> {
                 Err(error) => panic!("Problem opening file: {error:?}")
             };
 
-            emulator(&data, load, &prefix_tree);
+            emulator(&data, load, path, &prefix_tree);
         }
         _ => {unreachable!()}
     }

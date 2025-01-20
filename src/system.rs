@@ -224,12 +224,16 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
     }
 }
 
-pub fn emulator(data: &Vec<u8>, start: &u16, prefix_tree: &Trie) {
+pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
 
 
     print!("\x1B[2J\x1B[1;1H");
-
+    println!(
+        "Running {} : 0x{:04X}",
+        path,
+        start,
+    );
     println!("Welcome to the fake shell!");
     println!("Run `help` to see the commands!");
 
