@@ -1,5 +1,14 @@
 use crate::system::Core;
 
+fn absolute(core: &mut Core) -> u16 {
+    let pcl: u8 = core.memory[core.pc as usize + 1];
+    let pch: u8 = core.memory[core.pc as usize + 2];
+
+    let address: u16 = ((pch as u16) << 8) | (pcl as u16);
+
+    address
+}
+
 pub fn adc(core: &mut Core) -> &mut Core {
     let carry_bit: u8 = core.stat;
 
@@ -132,14 +141,14 @@ pub fn beq(core: &mut Core) -> &mut Core { core }
 pub fn bmi(core: &mut Core) -> &mut Core { core } 
 
 pub fn bne(core: &mut Core) -> &mut Core {
-    let zero_bit = core.stat >> 1;
+    let zero_bit: u8 = core.stat >> 1;
 
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if zero_bit & 0b1 == 0 {
-        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = ((core.pc as i32) + signed_offset) as u16;
+        core.pc = core.pc.wrapping_add_signed(signed_offset.into());
         core.pc += 2;
     } else {
         core.pc += 2;
@@ -435,7 +444,19 @@ pub fn inc(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn jmp(core: &mut Core) -> &mut Core { core } 
+pub fn jmp(core: &mut Core) -> &mut Core {
+    match core.ir {
+        0x4C => { // JMP ABS
+            let address: u16 = absolute(core);
+
+            core.pc = address;
+        }
+        0x6C => {}
+        _ => unreachable!()
+    }
+
+    core
+} 
 
 pub fn jsr(core: &mut Core) -> &mut Core {
     // The return address - 1 due to how RTS works.
@@ -465,12 +486,14 @@ pub fn lda(core: &mut Core) -> &mut Core {
         0xa9_u8 => { // LDA IMM
             core.acc = core.memory[core.pc as usize + 1];
             if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
+            else { core.stat = core.stat & !0b00000010 } // clear zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
         0xa5_u8 => { // LDA ZP
             core.acc = core.memory[core.memory[core.pc as usize + 1] as usize];
             if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
+            else { core.stat = core.stat & !0b00000010 } // clear zero flag
             if ((core.acc >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -491,6 +514,7 @@ pub fn ldx(core: &mut Core) -> &mut Core {
         0xA2_u8 => { // LDX IMM
             core.ix = core.memory[core.pc as usize + 1];
             if core.ix == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
+            else { core.stat = core.stat & !0b00000010 } // clear zero flag
             if ((core.ix >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -509,6 +533,7 @@ pub fn ldy(core: &mut Core) -> &mut Core {
         0xa0_u8 => { // LDY IMM
             core.iy = core.memory[core.pc as usize + 1];
             if core.iy == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
+            else { core.stat = core.stat & !0b00000010 } // clear zero flag
             if ((core.iy >> 6) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
             core.pc += 2;
         }
@@ -617,7 +642,13 @@ pub fn sta(core: &mut Core) -> &mut Core {
             core.pc += 2;
         }
         0x95_u8 => {}
-        0x8d_u8 => {}
+        0x8d_u8 => { // STA ABS
+            let address: u16 = absolute(core);
+
+            core.memory[address as usize] = core.acc;
+
+            core.pc += 3;
+        }
         0x9d_u8 => {}
         0x99_u8 => {}
         0x81_u8 => {}

@@ -151,6 +151,10 @@ fn help_out(args: Option<&str>) {
             println!(" + <binary> must be a file name without spaces, with the `.bin` extension.");
             println!(" + <target> must be a hexadecimal address starting with 0x.");
             println!("Examples: load some_file.bin 0x200");
+            println!("NOTE: Shorthand file names exist for some test files:");
+            println!(" + `functest` = `6502_functional_test.bin`");
+            println!(" + `dectest` = `6502_decimal_test.bin`");
+            println!("Memory addresses are still required with these.");
         }
 
         Some("exec") | Some("EXEC") => {
@@ -223,10 +227,10 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
             io::stdin().read_line(&mut input).unwrap();
 
             if input.trim() == "q" {
-                println!("Halting emulation.");
+                println!("Halting...");
                 break;
             }
-        } else {
+        } else if core.stat & 0b00010000 == 0b00010000 {
             println!();
             break;
         }
@@ -265,7 +269,12 @@ fn load_data(core: &mut Core, path: String, start: u16) -> &mut Core {
     let start_index: usize = start as usize;
     let end_index: usize = start_index + data.len();
 
-    if end_index > core.memory.len() { panic!("ROM data exceeds memory bounds!") }
+    if end_index > core.memory.len() {
+        print!("ERROR \n");
+        println!("ROM data exceeds memory bounds!");
+        println!("No file loaded");
+        return core
+    }
 
     core.memory[start_index..end_index].copy_from_slice(&data);
 
@@ -296,12 +305,18 @@ pub fn emulator(prefix_tree: &Trie) {
         match input_vec[0].trim() {
             "load" | "LOAD" => {
                 if input_vec.len() == 3 {
-                    let path: String = input_vec[1].to_string();
+                    let mut path: String = input_vec[1].to_string();
                     let load: Result<u16, String>  = parse_hex(input_vec[2]);
 
                     let re: Regex = Regex::new(r"^[^\s]*\.bin$").unwrap();
 
-                    assert!(re.is_match(&path));
+                    // typing the full path got painful
+                    if path == "functest" { path = "6502_functional_test.bin".to_string() }
+                    else if path == "dectest" { path = "6502_decimal_test.bin".to_string() }
+                    else if !re.is_match(&path) {
+                        help_out(Some("load"));
+                        continue;
+                    }
 
                     match load {
                         Ok(val) => {
