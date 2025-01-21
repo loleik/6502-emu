@@ -1,6 +1,8 @@
 use crate::trie::Trie;
 
 use std::io::{self, Write};
+use regex::Regex;
+use std::fs;
 
 pub struct Core {
     pub acc: u8, // 8-bit accumulator register
@@ -88,19 +90,11 @@ impl Core {
 }
 
 // The load, fetch and decode functions are short, but are separated for clarity.
-// Initializing the core and loading the binary data.
-fn load(data: &Vec<u8>, start: &u16) -> Core {
+// Initializing the core.
+fn init() -> Core {
     let mut core: Core = Core::new();
 
     core.sp = 0xFF; // Initialize stack pointer
-
-    // Load the data into memory.
-    let start_index: usize = *start as usize;
-    let end_index: usize = start_index + data.len();
-
-    if end_index > core.memory.len() { panic!("ROM data exceeds memory bounds!") }
-
-    core.memory[start_index..end_index].copy_from_slice(&data);
 
     core
 }
@@ -151,12 +145,21 @@ fn parse_hex(start: &str) -> Result<u16, String> {
 
 fn help_out(args: Option<&str>) {
     match args {
+        Some("load") | Some("LOAD") => {
+            println!("load <binary> <start>, LOAD <binary> <start> :");
+            println!(" + Loads the binary into memory from the start address onwards.");
+            println!(" + <binary> must be a file name without spaces, with the `.bin` extension.");
+            println!(" + <target> must be a hexadecimal address starting with 0x.");
+            println!("Examples: load some_file.bin 0x200");
+        }
+
         Some("exec") | Some("EXEC") => {
             println!("exec <target>, EXEC <target> :");
             println!(" + Runs the passed binary starting at the given address.");
             println!(" + <target> must be a hexadecimal address starting with 0x.");
             println!("Examples: exec 0x200, exec 0x0200, exec 0x0");
         }
+
         Some("dump") | Some("DUMP") => {
             println!("dump <target>, DUMP <target>:");
             println!(" + Dumps the contents of memory at the target address.");
@@ -164,22 +167,27 @@ fn help_out(args: Option<&str>) {
             println!(" + Lists of addresses, split by spaces, are supported.");
             println!("Examples: dump 0x200 0x300, dump 0x0200, dump 0x0 0x0200");
         }
+
         Some("clear") | Some("CLEAR") => {
             println!("clear, CLEAR :");
             println!("Clears the screen.")
         }
+
         Some("quit") | Some("QUIT") | Some("q") => {
             println!("quit, QUIT, q :");
             println!("Quits the program.")
         }
+
         Some(_) => {
             println!("Unrecognized argument {args:?}")
         }
+
         None => {
             println!("Welcome to a silly fake shell!");
             println!("Commands:");
-            println!(" + exec, EXEC - Runs the passed binary starting at the given address.");
-            println!(" + dump, DUMP - Will eventually dump memory or parts of it.");
+            println!(" + load, LOAD - Loads the provided file into memory from a given start address.");
+            println!(" + exec, EXEC - Runs a program from a given start address.");
+            println!(" + dump, DUMP - Dump memory form a list of addresses");
             println!(" + clear, CLEAR - Clear the screen.");
             println!(" + quit, QUIT, q - Quit, pretty self explanatory.");
             println!(" + help, HELP, h - Prints this message.");
@@ -227,6 +235,7 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
     }
 }
 
+// Quick memory dump function for checking functionality.
 fn mem_dump(core: &mut Core, targets: &Vec<u16>) {
     println!(" Address │ Contents ");
     println!("─────────┼─────────");
@@ -235,16 +244,40 @@ fn mem_dump(core: &mut Core, targets: &Vec<u16>) {
     }
 }
 
-pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) {
-    let mut core: Core = load(data, start);
-
-    print!("\x1B[2J\x1B[1;1H");
-    println!(
-        "Running {} : 0x{:04X}",
+fn load_data(core: &mut Core, path: String, start: u16) -> &mut Core {
+    print!(
+        "Loading {} from 0x{:04X}: ",
         path,
         start,
     );
-    println!("Welcome to the fake shell!");
+    
+    let data: Vec<u8> = match fs::read(path) {
+        Ok(data) => data,
+        Err(error) => {
+            print!("ERROR \n");
+            println!("Problem opening file: {error:?}");
+            println!("No file loaded");
+            return core
+        }
+    };
+
+    // Load the data into memory.
+    let start_index: usize = start as usize;
+    let end_index: usize = start_index + data.len();
+
+    if end_index > core.memory.len() { panic!("ROM data exceeds memory bounds!") }
+
+    core.memory[start_index..end_index].copy_from_slice(&data);
+
+    print!("OK! \n");
+
+    core
+}
+
+pub fn emulator(prefix_tree: &Trie) {
+    let mut core: Core = init();
+
+    print!("\x1B[2J\x1B[1;1H");
     println!("Run `help` to see the commands!");
 
     // Stupid fake shell. I did like the idea, so I will expand on it.
@@ -261,6 +294,30 @@ pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) 
         if input_vec.len() == 0 { continue }
 
         match input_vec[0].trim() {
+            "load" | "LOAD" => {
+                if input_vec.len() == 3 {
+                    let path: String = input_vec[1].to_string();
+                    let load: Result<u16, String>  = parse_hex(input_vec[2]);
+
+                    let re: Regex = Regex::new(r"^[^\s]*\.bin$").unwrap();
+
+                    assert!(re.is_match(&path));
+
+                    match load {
+                        Ok(val) => {
+                            load_data(&mut core, path, val);
+                        }
+                        Err(error) => {
+                            println!("{error}");
+                            continue;
+                        }
+                    }
+                } else {
+                    help_out(Some("load"));
+                    continue
+                }
+            }
+
             "exec" | "EXEC" => {
                 if input_vec.len() == 1 {
                     help_out(Some("exec"));
