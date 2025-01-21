@@ -172,6 +172,12 @@ fn help_out(args: Option<&str>) {
             println!("Examples: dump 0x200 0x300, dump 0x0200, dump 0x0 0x0200");
         }
 
+        Some("reset") | Some("RESET") => {
+            println!("reset, RESET :");
+            println!("Reinitializes the core.");
+            println!("NOTE: This does not currently involve reset vectors, just reinitializing.")
+        }
+
         Some("clear") | Some("CLEAR") => {
             println!("clear, CLEAR :");
             println!("Clears the screen.")
@@ -192,6 +198,7 @@ fn help_out(args: Option<&str>) {
             println!(" + load, LOAD - Loads the provided file into memory from a given start address.");
             println!(" + exec, EXEC - Runs a program from a given start address.");
             println!(" + dump, DUMP - Dump memory form a list of addresses");
+            println!(" + reset, RESET - Reinitialize the core.");
             println!(" + clear, CLEAR - Clear the screen.");
             println!(" + quit, QUIT, q - Quit, pretty self explanatory.");
             println!(" + help, HELP, h - Prints this message.");
@@ -355,9 +362,10 @@ pub fn emulator(prefix_tree: &Trie) {
                 main_loop(&mut core, prefix_tree);
             }
 
-            "quit" | "QUIT" | "q" => {
-                println!("Exiting...");
-                break;
+            "reset" | "RESET" => {
+                print!("Reinitializing core... ");
+                core = init();
+                print!("Done \n")
             }
 
             "dump" | "DUMP" => {
@@ -385,6 +393,11 @@ pub fn emulator(prefix_tree: &Trie) {
             }
 
             "clear" | "CLEAR" => { print!("\x1B[2J\x1B[1;1H"); }
+
+            "quit" | "QUIT" | "q" => {
+                println!("Exiting...");
+                break;
+            }
 
             "help" | "HELP" | "h" => {
                 if input_vec.len() == 1 { help_out(None); }
