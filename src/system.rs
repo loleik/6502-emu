@@ -155,11 +155,14 @@ fn help_out(args: Option<&str>) {
             println!("exec <target>, EXEC <target> :");
             println!(" + Runs the passed binary starting at the given address.");
             println!(" + <target> must be a hexadecimal address starting with 0x.");
-            println!("Example: exec 0x200, exec 0x0200, exec 0x0");
+            println!("Examples: exec 0x200, exec 0x0200, exec 0x0");
         }
         Some("dump") | Some("DUMP") => {
-            println!("dump, DUMP :");
-            println!("Not currently implemented. This will be used for inspecting memory.")
+            println!("dump <target>, DUMP <target>:");
+            println!(" + Dumps the contents of memory at the target address.");
+            println!(" + <target> must be a hexadecimal address starting with 0x.");
+            println!(" + Lists of addresses, split by spaces, are supported.");
+            println!("Examples: dump 0x200 0x300, dump 0x0200, dump 0x0 0x0200");
         }
         Some("clear") | Some("CLEAR") => {
             println!("clear, CLEAR :");
@@ -224,9 +227,16 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
     }
 }
 
+fn mem_dump(core: &mut Core, targets: &Vec<u16>) {
+    println!(" Address │ Contents ");
+    println!("─────────┼─────────");
+    for target in targets {
+        println!(" 0x{:04X}  │ 0x{:02X} ", target, core.memory[*target as usize])
+    }
+}
+
 pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) {
     let mut core: Core = load(data, start);
-
 
     print!("\x1B[2J\x1B[1;1H");
     println!(
@@ -256,7 +266,7 @@ pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) 
                     help_out(Some("exec"));
                     continue
                 } else {
-                    let target = parse_hex(input_vec[1]);
+                    let target: Result<u16, String> = parse_hex(input_vec[1]);
                     match target {
                         Ok(val) => {
                             set_pc(&mut core, val);
@@ -271,18 +281,45 @@ pub fn emulator(data: &Vec<u8>, start: &u16, path: &String, prefix_tree: &Trie) 
                 print!("\x1B[2J\x1B[1;1H");
 
                 main_loop(&mut core, prefix_tree);
-            },
+            }
+
             "quit" | "QUIT" | "q" => {
                 println!("Exiting...");
                 break;
-            },
-            "dump" | "DUMP" => { println!("Memory dump not yet implemented."); },
+            }
+
+            "dump" | "DUMP" => {
+                if input_vec.len() == 1 {
+                    help_out(Some("dump"));
+                    continue
+                } else {
+                    let mut targets: Vec<u16> = Vec::new();
+
+                    for i in 1..input_vec.len() {
+                        let target: Result<u16, String> = parse_hex(input_vec[i]);
+                        match target {
+                            Ok(val) => {
+                                targets.push(val);
+                            }
+                            Err(error) => {
+                                println!("{error}");
+                                continue;
+                            }
+                        }
+                    }
+
+                    mem_dump(&mut core, &targets);
+                }
+            }
+
             "clear" | "CLEAR" => { print!("\x1B[2J\x1B[1;1H"); }
+
             "help" | "HELP" | "h" => {
                 if input_vec.len() == 1 { help_out(None); }
                 else if input_vec.len() == 2 { help_out(Some(input_vec[1])); }
                 else { println!("Please provide a maximum of one argument.") }
-            },
+            }
+
             _ => { println!("Unrecognized input: {:?}", input_vec); }
         }
     }
