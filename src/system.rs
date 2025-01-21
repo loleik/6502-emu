@@ -175,7 +175,8 @@ fn help_out(args: Option<&str>) {
         Some("reset") | Some("RESET") => {
             println!("reset, RESET :");
             println!("Reinitializes the core.");
-            println!("NOTE: This does not currently involve reset vectors, just reinitializing.")
+            println!("NOTE: This does not currently involve reset vectors, just reinitializing.");
+            println!("This is just useful for running binaries without having to rerun the emulator.")
         }
 
         Some("clear") | Some("CLEAR") => {
@@ -298,6 +299,8 @@ pub fn emulator(prefix_tree: &Trie) {
 
     // Stupid fake shell. I did like the idea, so I will expand on it.
     // Maybe move the emulation loop to another function for clarity as it expands later.
+    // If I use this core later for something that uses a 6502, I will likely have to remove this,
+    // or at least write a version without it. But it's helpful and was enjoyable to write.
     loop {
         print!("> ");
 
