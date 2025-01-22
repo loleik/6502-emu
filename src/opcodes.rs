@@ -118,12 +118,13 @@ pub fn adc(core: &mut Core) -> &mut Core {
 pub fn and(core: &mut Core) -> &mut Core {
     match core.ir {
         0x29_u8 => { // AND IMM
-            core.acc = core.acc & core.memory[core.pc as usize + 1];
-            if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
-            else { core.stat = core.stat & !0b00000010 } // clear zero flag
+            core.acc &= core.memory[core.pc as usize + 1];
 
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
-            else { core.stat = core.stat & !0b10000000 } // clear negative flag
+            if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+            else { core.stat &= !0b00000010 } // clear zero flag
+
+            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+            else { core.stat &= !0b10000000 } // clear negative flag
             
             core.pc += 2;
         }
@@ -143,35 +144,29 @@ pub fn and(core: &mut Core) -> &mut Core {
 pub fn asl(core: &mut Core) -> &mut Core { core } 
 
 pub fn bcc(core: &mut Core) -> &mut Core {
-    let carry_bit: u8 = core.stat;
-
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
-    if carry_bit & 0b1 == 0 {
+    if core.stat & 0b1 == 0 {
         let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = core.pc.wrapping_add_signed(signed_offset.into());
-        core.pc += 2;
-    } else {
-        core.pc += 2;
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
     }
+
+    core.pc += 2;
 
     core
 } 
 
 pub fn bcs(core: &mut Core) -> &mut Core {
-    let carry_bit: u8 = core.stat;
-
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
-    if carry_bit & 0b1 == 1 {
+    if core.stat & 0b1 == 1 {
         let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = core.pc.wrapping_add_signed(signed_offset.into());
-        core.pc += 2;
-    } else {
-        core.pc += 2;
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
     }
+    
+    core.pc += 2;
 
     core
 } 
@@ -181,35 +176,29 @@ pub fn beq(core: &mut Core) -> &mut Core { core }
 pub fn bmi(core: &mut Core) -> &mut Core { core } 
 
 pub fn bne(core: &mut Core) -> &mut Core {
-    let zero_bit: u8 = core.stat >> 1;
-
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
-    if zero_bit & 0b1 == 0 {
+    if (core.stat >> 1) & 0b1 == 0 {
         let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = core.pc.wrapping_add_signed(signed_offset.into());
-        core.pc += 2;
-    } else {
-        core.pc += 2;
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
     }
+    
+    core.pc += 2;
 
     core
 } 
 
 pub fn bpl(core: &mut Core) -> &mut Core {
-    let negative_bit: u8 = core.stat >> 7;
-
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
-    if negative_bit & 0b1 == 0 {
-        let signed_offset: i32 = core.memory[(core.pc as usize) + 1] as i32;
+    if (core.stat >> 7) & 0b1 == 0 {
+        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
 
-        core.pc = ((core.pc as i32) + signed_offset) as u16;
-        core.pc += 2;
-    } else {
-        core.pc += 2;
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
     }
+    
+    core.pc += 2;
 
     core
 } 
@@ -275,11 +264,11 @@ pub fn pla(core: &mut Core) -> &mut Core {
     // Increment stack pointer
     core.sp += 1;
 
-    if core.acc == 0x00_u8 { core.stat = core.stat | 0b00000010 } // Set zero flag
-    else { core.stat = core.stat & !0b00000010 } // clear zero flag
+    if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
 
-    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat = core.stat | 0b10000000 } // Set negative flag
-    else { core.stat = core.stat & !0b10000000 } // clear negative flag
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
 
     core.pc += 1;
 
@@ -321,14 +310,14 @@ pub fn rts(core: &mut Core) -> &mut Core {
 
 pub fn sec(core: &mut Core) -> &mut Core {
     // Set carry flag
-    core.stat = core.stat | 0b00000001;
+    core.stat |= 0b00000001;
     core.pc += 1;
 
     core
 } 
 
 pub fn sed(core: &mut Core) -> &mut Core {
-    core.stat = core.stat | 0b00001000;
+    core.stat |= 0b00001000;
     core.pc += 1;
 
     core
@@ -357,11 +346,13 @@ pub fn txs(core: &mut Core) -> &mut Core {
 pub fn cmp(core: &mut Core) -> &mut Core {
     match core.ir {
         0xC9 => { // CMP IMM
+            let mem: u8 = core.memory[core.pc as usize + 1];
+
             // Calculate A - M, zero extending both values:
-            let val: i16 = (core.acc as i16) - (core.memory[core.pc as usize + 1] as i16);
+            let val: i16 = (core.acc as i16) - (mem as i16);
 
             // Check the result and set flags:
-            if val >= 0 { core.stat |= 0b00000001 } // Carry flag
+            if core.acc >= mem { core.stat |= 0b00000001 } // Carry flag
             else { core.stat &= !0b00000001 } // Clear carry flag
 
             if (val & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
