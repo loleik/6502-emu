@@ -210,7 +210,31 @@ fn help_out(args: Option<&str>) {
 
 // Separated the main loop for clarity
 fn main_loop(core: &mut Core, prefix_tree: &Trie) {
+    let mut step: bool = false;
+
+    loop {
+        print!("Would you like to step through each iteration manually? (y/n): ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        match input.trim() {
+            "y" => {
+                step = true;
+                break
+            }
+            "n" => { break }
+            _ => {
+                println!("Please answer with y(es) or n(o).");
+                continue
+            }
+        }
+    }
+
     let mut i = 1;
+
+    print!("\x1B[2J\x1B[1;1H");
 
     // Starting to step through test binary to implement opcodes.
     // This is getting cumbersome. Need to implement stepping through loop now.
@@ -227,7 +251,7 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
         io::stdout().flush().unwrap();
 
         // Skipping over iterations I've looked at closely
-        if core.stat & 0b00010000 != 0b00010000 {
+        if core.stat & 0b00010000 != 0b00010000 && step {
             print!("Press Enter to step, or type 'q' to quit: ");
             io::stdout().flush().unwrap();
 
