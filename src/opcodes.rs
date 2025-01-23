@@ -568,6 +568,7 @@ pub fn jsr(core: &mut Core) -> &mut Core {
 
     core
 } 
+// bne 0x024b
 
 pub fn lda(core: &mut Core) -> &mut Core {
     match core.ir {
@@ -633,7 +634,9 @@ pub fn ldy(core: &mut Core) -> &mut Core {
         0xa0_u8 => { // LDY IMM
             core.iy = core.memory[core.pc as usize + 1];
 
-            if core.iy == 0 { core.stat |= 0b00000010 } // Set zero flag
+            if core.memory[core.pc as usize + 1] == 0 {
+                core.stat |= 0b00000010;
+            } // Set zero flag
             else { core.stat &= !0b00000010 } // clear zero flag
 
             if ((core.iy >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
