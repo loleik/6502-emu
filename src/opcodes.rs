@@ -547,37 +547,36 @@ pub fn jsr(core: &mut Core) -> &mut Core {
 } 
 
 pub fn lda(core: &mut Core) -> &mut Core {
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
         0xa9_u8 => { // LDA IMM
-            core.acc = core.memory[core.pc as usize + 1];
-
-            if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-            
-            core.pc += 2;
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
         }
         0xa5_u8 => { // LDA ZP
-            core.acc = core.memory[core.memory[core.pc as usize + 1] as usize];
-
-            if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-
-            core.pc += 2;
+            value = core.memory[core.memory[core.pc as usize + 1] as usize];
+            inc = 2;
         }
-        0xb5_u8 => {}
-        0xad_u8 => {}
-        0xbd_u8 => {}
-        0xb9_u8 => {}
-        0xa1_u8 => {}
-        0xb1_u8 => {}
-        _ => unreachable!()
+        //0xb5_u8 => {}
+        //0xad_u8 => {}
+        //0xbd_u8 => {}
+        //0xb9_u8 => {}
+        //0xa1_u8 => {}
+        //0xb1_u8 => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    core.acc = value;
+
+    if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    core.pc += inc;
 
     core
 } 
