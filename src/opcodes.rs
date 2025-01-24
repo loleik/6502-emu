@@ -305,51 +305,44 @@ pub fn txs(core: &mut Core) -> &mut Core {
 } 
 
 pub fn cmp(core: &mut Core) -> &mut Core {
+    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
+    let decimal = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
         0xC9 => { // CMP IMM
-            let mem: u8 = core.memory[core.pc as usize + 1];
-
-            // Calculate A - M, zero extending both values:
-            let val: i16 = (core.acc as i16) - (mem as i16);
-
-            // Check the result and set flags:
-            if core.acc >= mem { core.stat |= 0b00000001 } // Carry flag
-            else { core.stat &= !0b00000001 } // Clear carry flag
-
-            if (val & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
-            else { core.stat &= !0b00000010 } // Clear zero flag
-
-            if (val & 0x80) != 0 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // Clear negative flag
-        
-            core.pc += 2;
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
         }
         0xC5 => { // CMP ZP
-            let zp: i16 = core.memory[core.memory[(core.pc as usize) + 1] as usize] as i16;
-
-            // Calculate A - M, zero extending both values:
-            let val: i16 = (core.acc as i16) - zp;
-
-            // Check the result and set flags:
-            if val >= 0 { core.stat |= 0b00000001 } // Carry flag
-            else { core.stat &= !0b00000001 } // Clear carry flag
-
-            if (val & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
-            else { core.stat &= !0b00000010 } // Clear zero flag
-
-            if (val & 0x80) != 0 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // Clear negative flag
-        
-            core.pc += 2;
+            value = core.memory[core.memory[(core.pc as usize) + 1] as usize];
+            inc = 2;
         }
-        0xD5 => {}
-        0xCD => {}
-        0xDD => {}
-        0xD9 => {}
-        0xC1 => {}
-        0xD1 => {}
-        _ => unreachable!()
+        //0xD5 => {}
+        //0xCD => {}
+        //0xDD => {}
+        //0xD9 => {}
+        //0xC1 => {}
+        //0xD1 => {}
+        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    // Calculate A - M, zero extending both values:
+    let result: i16 = (core.acc as i16) - (value as i16);
+
+    // Check the result and set flags:
+    if core.acc >= value { core.stat |= 0b00000001 } // Carry flag
+    else { core.stat &= !0b00000001 } // Clear carry flag
+
+    if (result & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if (result & 0x80) != 0 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += inc;
 
     core
 } 
