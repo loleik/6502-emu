@@ -242,7 +242,13 @@ pub fn brk(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn clc(core: &mut Core) -> &mut Core { core } 
+pub fn clc(core: &mut Core) -> &mut Core {
+    core.stat &= !0b00000001; // Clear carry flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn cld(core: &mut Core) -> &mut Core {
     core.stat = core.stat & 0b11110111; // Clear decimal flag
