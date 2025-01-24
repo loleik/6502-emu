@@ -46,23 +46,20 @@ pub fn adc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
     let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
-        0x69_u8 => { // ADC IMMmut
-            value = core.memory[core.pc as usize + 1];
+        0x69_u8 => { // ADC IMM
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0x65_u8 => { // ADC ZP
-            let zp: usize = core.memory[core.pc as usize + 1] as usize;
-            value = core.memory[zp];
+            value = Value::new(core, "zp");
             inc = 2;
         }
         0x75_u8 => { // ADC ZPX
-            let zp_address: u8 = core.memory[core.pc as usize + 1];
-            let zp_x: u8 = zp_address.wrapping_add(core.ix);
-            value = core.memory[zp_x as usize];
+            value = Value::new(core, "zpx");
             inc = 2;
         }
         //0x6d_u8 => {}
@@ -76,7 +73,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     let borrow: u8 = if core.stat & 0b1 != 0 { 1 } else { 0 }; // Equal to carry bit
 
     // Calculate A + M + Carry, zero extending all values:
-    let result: i16 = (core.acc as i16) + (value as i16) + (borrow as i16);
+    let result: i16 = (core.acc as i16) + (value.get() as i16) + (borrow as i16);
 
     let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check before addition.
 
@@ -92,7 +89,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     else { core.stat &= !0b10000000 } // clear negative flag
 
     // Overflow flag logic:
-    let mem_sign: bool = (value >> 7) & 0b1 != 0;
+    let mem_sign: bool = (value.get() >> 7) & 0b1 != 0;
     let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
 
     if acc_sign == mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
@@ -104,12 +101,12 @@ pub fn adc(core: &mut Core) -> &mut Core {
 }
 
 pub fn and(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0x29_u8 => { // AND IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         //0x25_u8 => {}
@@ -122,7 +119,7 @@ pub fn and(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.acc &= value;
+    core.acc &= value.get();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -179,7 +176,19 @@ pub fn beq(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn bmi(core: &mut Core) -> &mut Core { core } 
+pub fn bmi(core: &mut Core) -> &mut Core {
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if (core.stat >> 7) & 0b1 == 1 {
+        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
+
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+    }
+    
+    core.pc += 2;
+
+    core
+} 
 
 pub fn bne(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
@@ -411,16 +420,16 @@ pub fn cmp(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
     let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0xC9 => { // CMP IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0xC5 => { // CMP ZP
-            value = core.memory[core.memory[(core.pc as usize) + 1] as usize];
+            value = Value::new(core, "zp");
             inc = 2;
         }
         //0xD5 => {}
@@ -433,10 +442,10 @@ pub fn cmp(core: &mut Core) -> &mut Core {
     }
 
     // Calculate A - M, zero extending both values:
-    let result: i16 = (core.acc as i16) - (value as i16);
+    let result: i16 = (core.acc as i16) - (value.get() as i16);
 
     // Check the result and set flags:
-    if core.acc >= value { core.stat |= 0b00000001 } // Carry flag
+    if core.acc >= value.get() { core.stat |= 0b00000001 } // Carry flag
     else { core.stat &= !0b00000001 } // Clear carry flag
 
     if (result & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
@@ -450,18 +459,16 @@ pub fn cmp(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn cpx(core: &mut Core) -> &mut Core { core } 
-
-pub fn cpy(core: &mut Core) -> &mut Core {
+pub fn cpx(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
     let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0xC0 => { // CPY IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         //0xC4 => {}
@@ -470,7 +477,42 @@ pub fn cpy(core: &mut Core) -> &mut Core {
     }
 
     // Calculate Y - M, zero extending both values:
-    let result: i16 = (core.iy as i16) - (value as i16);
+    let result: i16 = (core.ix as i16) - (value.get() as i16);
+
+    // Check the result and set flags:
+    if result >= 0 { core.stat |= 0b00000001 } // Carry flag
+    else { core.stat &= !0b00000001 } // Clear carry flag
+
+    if (result & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if (result & 0x80) != 0 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += inc;
+
+    core
+} 
+
+pub fn cpy(core: &mut Core) -> &mut Core {
+    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
+    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+
+    let value: Value;
+    let inc: u16;
+
+    match core.ir {
+        0xC0 => { // CPY IMM
+            value = Value::new(core, "imm");
+            inc = 2;
+        }
+        //0xC4 => {}
+        //0xCC => {}
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    // Calculate Y - M, zero extending both values:
+    let result: i16 = (core.iy as i16) - (value.get() as i16);
 
     // Check the result and set flags:
     if result >= 0 { core.stat |= 0b00000001 } // Carry flag
@@ -546,16 +588,16 @@ pub fn iny(core: &mut Core) -> &mut Core {
 } 
 
 pub fn eor(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
     
     match core.ir {
         0x49 => { // EOR IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0x45 => { // EOR ZP
-            value = core.memory[core.memory[(core.pc) as usize + 1] as usize];
+            value = Value::new(core, "zp");
             inc = 2;
         }
         //0x55 => {}
@@ -568,7 +610,7 @@ pub fn eor(core: &mut Core) -> &mut Core {
     }
 
     // Calculate A ^ M
-    core.acc ^= value;
+    core.acc ^= value.get();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // Clear zero flag
@@ -582,12 +624,12 @@ pub fn eor(core: &mut Core) -> &mut Core {
 } 
 
 pub fn inc(core: &mut Core) -> &mut Core {
-    let address: u8;
+    let address: Value;
     let inc: u16;
     
     match core.ir {
         0xE6 => { // INC ZP
-            address = core.memory[core.memory[core.pc as usize + 1] as usize];
+            address = Value::new(core, "zp");
             inc = 2
         }
         //0xF6 => {}
@@ -596,12 +638,12 @@ pub fn inc(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.memory[address as usize] = core.memory[address as usize].wrapping_add(1);
+    core.memory[address.get() as usize] = core.memory[address.get() as usize].wrapping_add(1);
 
-    if core.memory[address as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    if core.memory[address.get() as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // Clear zero flag
     
-    if ((core.memory[address as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    if ((core.memory[address.get() as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
     else { core.stat &= !0b10000000 } // Clear negative flag
 
     core.pc += inc;
@@ -609,6 +651,7 @@ pub fn inc(core: &mut Core) -> &mut Core {
     core
 } 
 
+// NOTE refactor to use Value struct
 pub fn jmp(core: &mut Core) -> &mut Core {
     match core.ir {
         0x4C => { // JMP ABS
@@ -766,16 +809,16 @@ pub fn ldy(core: &mut Core) -> &mut Core {
 pub fn lsr(core: &mut Core) -> &mut Core { core } 
 
 pub fn ora(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0x09_u8 => { // ORA IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0x05_u8 => { // ORA ZP
-            value = core.memory[core.memory[core.pc as usize + 1] as usize];
+            value = Value::new(core, "zp");
             inc= 2;
         }
         //0x15_u8 => {}
@@ -787,7 +830,7 @@ pub fn ora(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.acc |= value;
+    core.acc |= value.get();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -808,22 +851,20 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
     let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
-    let value: u8;
+    let value: Value;
     let inc: u16;
     
     match core.ir {
         0xE9_u8 => { // SBC IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0xE5_u8 => { // SBC ZP
-            value = core.memory[core.memory[core.pc as usize + 1] as usize];
+            value = Value::new(core, "zp");
             inc = 2;
         }
         0xF5_u8 => { // SBC ZPX
-            // Get the zero page address by adding the x register to the value in memory
-            let zp_x: u8 = core.memory[core.pc as usize + 1].wrapping_add(core.ix);
-            value =  core.memory[zp_x as usize];
+            value = Value::new(core, "zp_x");
             inc = 2;
         }
         //0xED_u8 => {}
@@ -839,7 +880,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
             
     // Calculate A - M - Carry, zero extending all values:
-    let result: i16 = (core.acc as i16) - (value as i16) - (borrow as i16);
+    let result: i16 = (core.acc as i16) - (value.get() as i16) - (borrow as i16);
 
     core.acc = result as u8; // Clamp to 8 bits and store result
 
@@ -853,7 +894,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     else { core.stat &= !0b10000000 } // clear negative flag
 
     // Overflow flag logic:
-    let mem_sign: bool = (value >> 7) & 0b1 != 0;
+    let mem_sign: bool = (value.get() >> 7) & 0b1 != 0;
     let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
 
     if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
@@ -864,8 +905,8 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     core
 } 
 
-// I'm not going to refactor this or the other store functions yet. I'm unsure how to work with the absolute addressing.
-pub fn sta(core: &mut Core) -> &mut Core {
+// NOTE refactor to use Value struct
+pub fn sta(core: &mut Core) -> &mut Core {    
     match core.ir {
         0x85_u8 => { // STA ZP
             core.memory[core.memory[core.pc as usize + 1] as usize] = core.acc;
@@ -900,6 +941,7 @@ pub fn stx(core: &mut Core) -> &mut Core {
     core
 } 
 
+// NOTE refactor to use Value struct
 pub fn sty(core: &mut Core) -> &mut Core {
     match core.ir {
         0x84_u8 => { // STY ZP
