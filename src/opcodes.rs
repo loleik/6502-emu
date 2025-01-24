@@ -443,30 +443,37 @@ pub fn iny(core: &mut Core) -> &mut Core {
 } 
 
 pub fn eor(core: &mut Core) -> &mut Core {
+    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
+    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+
+    let value: u8;
+    let inc: u16;
+    
     match core.ir {
-        0x49 => {}
+        //0x49 => {}
         0x45 => { // EOR ZP
-            let zp: u8 = core.memory[core.memory[(core.pc) as usize + 1] as usize];
-
-            // Calculate A ^ M
-            core.acc ^= zp;
-
-            if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // Clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // Clear negative flag
-
-            core.pc += 2;
+            value = core.memory[core.memory[(core.pc) as usize + 1] as usize];
+            inc = 2;
         }
-        0x55 => {}
-        0x4D => {}
-        0x5D => {}
-        0x59 => {}
-        0x41 => {}
-        0x51 => {}
-        _ => unreachable!()
+        //0x55 => {}
+        //0x4D => {}
+        //0x5D => {}
+        //0x59 => {}
+        //0x41 => {}
+        //0x51 => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    // Calculate A ^ M
+    core.acc ^= value;
+
+    if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += inc;
 
     core
 } 
