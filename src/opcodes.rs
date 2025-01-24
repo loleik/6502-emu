@@ -1,5 +1,38 @@
 use crate::system::Core;
 
+enum Value {
+    Target(u8),
+}
+
+impl Value {
+    fn new(core: &mut Core, mode: &str) -> Self {
+        match mode {
+            "imm" => Value::Target(
+                core.memory[core.pc as usize + 1]
+            ),
+            "zp" => Value::Target(
+                core.memory[core.memory[core.pc as usize + 1] as usize]
+            ),
+            "zpx" => Value::Target(
+                core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.ix)) as usize]
+            ),
+            "zpy" => Value::Target(
+                core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.iy)) as usize]
+            ),
+            "abs" => Value::Target(
+                core.memory[absolute(core) as usize]
+            ),
+            _ => unreachable!(),
+        }
+    }
+
+    fn get(&self) -> u8 {
+        match self {
+            Value::Target(value) => *value,
+        }
+    }
+}
+
 fn absolute(core: &mut Core) -> u16 {
     let pcl: u8 = core.memory[core.pc as usize + 1];
     let pch: u8 = core.memory[core.pc as usize + 2];
@@ -37,7 +70,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
         //0x79_u8 => {}
         //0x61_u8 => {}
         //0x71_u8 => {}
-        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     let borrow: u8 = if core.stat & 0b1 != 0 { 1 } else { 0 }; // Equal to carry bit
@@ -86,7 +119,7 @@ pub fn and(core: &mut Core) -> &mut Core {
         //0x39_u8 => {}
         //0x21_u8 => {}
         //0x31_u8 => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     core.acc &= value;
@@ -132,7 +165,19 @@ pub fn bcs(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn beq(core: &mut Core) -> &mut Core { core } 
+pub fn beq(core: &mut Core) -> &mut Core {
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if (core.stat >> 1) & 0b1 == 1 {
+        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
+
+        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+    }
+    
+    core.pc += 2;
+
+    core
+} 
 
 pub fn bmi(core: &mut Core) -> &mut Core { core } 
 
@@ -326,7 +371,7 @@ pub fn cmp(core: &mut Core) -> &mut Core {
         //0xD9 => {}
         //0xC1 => {}
         //0xD1 => {}
-        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     // Calculate A - M, zero extending both values:
@@ -363,7 +408,7 @@ pub fn cpy(core: &mut Core) -> &mut Core {
         }
         //0xC4 => {}
         //0xCC => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     // Calculate Y - M, zero extending both values:
@@ -458,7 +503,7 @@ pub fn eor(core: &mut Core) -> &mut Core {
         //0x59 => {}
         //0x41 => {}
         //0x51 => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     // Calculate A ^ M
@@ -487,7 +532,7 @@ pub fn inc(core: &mut Core) -> &mut Core {
         //0xF6 => {}
         //0xEE => {}
         //0xFE => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     core.memory[address as usize] = core.memory[address as usize].wrapping_add(1);
@@ -541,28 +586,31 @@ pub fn jsr(core: &mut Core) -> &mut Core {
 } 
 
 pub fn lda(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0xa9_u8 => { // LDA IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
         0xa5_u8 => { // LDA ZP
-            value = core.memory[core.memory[core.pc as usize + 1] as usize];
+            value = Value::new(core, "zp");
             inc = 2;
         }
         //0xb5_u8 => {}
-        //0xad_u8 => {}
+        0xad_u8 => { // LDA ABS
+            value = Value::new(core, "abs");
+            inc = 3;
+        }
         //0xbd_u8 => {}
         //0xb9_u8 => {}
         //0xa1_u8 => {}
         //0xb1_u8 => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
-    core.acc = value;
+    core.acc = value.get();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -588,7 +636,7 @@ pub fn ldx(core: &mut Core) -> &mut Core {
         //0xB6_u8 => {}
         //0xAE_u8 => {}
         //0xBE_u8 => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     core.ix = value;
@@ -617,7 +665,7 @@ pub fn ldy(core: &mut Core) -> &mut Core {
         //0xb4_u8 => {}
         //0xac_u8 => {}
         //0xbc_u8 => {}
-        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     core.iy = value;
@@ -654,7 +702,7 @@ pub fn ora(core: &mut Core) -> &mut Core {
         //0x19_u8 => {}
         //0x01_u8 => {}
         //0x11_u8 => {}
-        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
 
     core.acc |= value;
@@ -701,7 +749,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
         //0xF9_u8 => {}
         //0xE1_u8 => {}
         //0xF1_u8 => {}
-        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
+        _ => unreachable!()
     }
     
     let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.

@@ -30,3 +30,4 @@ These are things that I am worried about, but for now they may be fine. This lis
 * Program counter behaviour in BCS.
 * Break flag behaviour.
 * Reordered status bits to be in line with documentation.
+* BCD not yet implemented. I've tried a bit but will come back to it instead.
