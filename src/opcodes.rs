@@ -22,7 +22,7 @@ impl Value {
             "abs" => Value::Target(
                 core.memory[absolute(core) as usize]
             ),
-            _ => unreachable!(),
+            _ => unreachable!("{:?}", core.info),
         }
     }
 
@@ -70,7 +70,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
         //0x79_u8 => {}
         //0x61_u8 => {}
         //0x71_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     let borrow: u8 = if core.stat & 0b1 != 0 { 1 } else { 0 }; // Equal to carry bit
@@ -119,7 +119,7 @@ pub fn and(core: &mut Core) -> &mut Core {
         //0x39_u8 => {}
         //0x21_u8 => {}
         //0x31_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.acc &= value;
@@ -262,7 +262,11 @@ pub fn cli(core: &mut Core) -> &mut Core { core }
 
 pub fn clv(core: &mut Core) -> &mut Core { core } 
 
-pub fn nop(core: &mut Core) -> &mut Core { core } 
+pub fn nop(core: &mut Core) -> &mut Core {
+    core.pc += 1;
+
+    core
+} 
 
 pub fn pha(core: &mut Core) -> &mut Core { core } 
 
@@ -425,7 +429,7 @@ pub fn cmp(core: &mut Core) -> &mut Core {
         //0xD9 => {}
         //0xC1 => {}
         //0xD1 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     // Calculate A - M, zero extending both values:
@@ -462,7 +466,7 @@ pub fn cpy(core: &mut Core) -> &mut Core {
         }
         //0xC4 => {}
         //0xCC => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     // Calculate Y - M, zero extending both values:
@@ -546,7 +550,10 @@ pub fn eor(core: &mut Core) -> &mut Core {
     let inc: u16;
     
     match core.ir {
-        //0x49 => {}
+        0x49 => { // EOR IMM
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
+        }
         0x45 => { // EOR ZP
             value = core.memory[core.memory[(core.pc) as usize + 1] as usize];
             inc = 2;
@@ -557,7 +564,7 @@ pub fn eor(core: &mut Core) -> &mut Core {
         //0x59 => {}
         //0x41 => {}
         //0x51 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     // Calculate A ^ M
@@ -586,7 +593,7 @@ pub fn inc(core: &mut Core) -> &mut Core {
         //0xF6 => {}
         //0xEE => {}
         //0xFE => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.memory[address as usize] = core.memory[address as usize].wrapping_add(1);
@@ -610,7 +617,7 @@ pub fn jmp(core: &mut Core) -> &mut Core {
             core.pc = address;
         }
         0x6C => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core
@@ -664,7 +671,7 @@ pub fn lda(core: &mut Core) -> &mut Core {
         //0xb9_u8 => {}
         //0xa1_u8 => {}
         //0xb1_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.acc = value.get();
@@ -702,7 +709,7 @@ pub fn ldx(core: &mut Core) -> &mut Core {
             inc = 3;
         }
         //0xBE_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.ix = value.get();
@@ -740,7 +747,7 @@ pub fn ldy(core: &mut Core) -> &mut Core {
             inc = 3;
         }
         //0xbc_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.iy = value.get();
@@ -777,7 +784,7 @@ pub fn ora(core: &mut Core) -> &mut Core {
         //0x19_u8 => {}
         //0x01_u8 => {}
         //0x11_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core.acc |= value;
@@ -824,7 +831,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
         //0xF9_u8 => {}
         //0xE1_u8 => {}
         //0xF1_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
     
     let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.
@@ -876,7 +883,7 @@ pub fn sta(core: &mut Core) -> &mut Core {
         0x99_u8 => {}
         0x81_u8 => {}
         0x91_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core
@@ -887,7 +894,7 @@ pub fn stx(core: &mut Core) -> &mut Core {
         0x86_u8 => {}
         0x96_u8 => {}
         0x8e_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core
@@ -901,7 +908,7 @@ pub fn sty(core: &mut Core) -> &mut Core {
         }
         0x94_u8 => {}
         0x8c_u8 => {}
-        _ => unreachable!()
+        _ => unreachable!("{:?}", core.info)
     }
 
     core
