@@ -77,27 +77,33 @@ pub fn adc(core: &mut Core) -> &mut Core {
 }
 
 pub fn and(core: &mut Core) -> &mut Core {
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
         0x29_u8 => { // AND IMM
-            core.acc &= core.memory[core.pc as usize + 1];
-
-            if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-            
-            core.pc += 2;
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
         }
-        0x25_u8 => {}
-        0x35_u8 => {}
-        0x2d_u8 => {}
-        0x3d_u8 => {}
-        0x39_u8 => {}
-        0x21_u8 => {}
-        0x31_u8 => {}
-        _ => unreachable!()
+        //0x25_u8 => {}
+        //0x35_u8 => {}
+        //0x2d_u8 => {}
+        //0x3d_u8 => {}
+        //0x39_u8 => {}
+        //0x21_u8 => {}
+        //0x31_u8 => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    core.acc &= value;
+
+    if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    core.pc += inc;
 
     core
 } 
@@ -443,9 +449,6 @@ pub fn iny(core: &mut Core) -> &mut Core {
 } 
 
 pub fn eor(core: &mut Core) -> &mut Core {
-    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
-
     let value: u8;
     let inc: u16;
     
@@ -479,9 +482,6 @@ pub fn eor(core: &mut Core) -> &mut Core {
 } 
 
 pub fn inc(core: &mut Core) -> &mut Core {
-    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
-
     let address: u8;
     let inc: u16;
     
@@ -740,6 +740,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     core
 } 
 
+// I'm not going to refactor this or the other store functions yet. I'm unsure how to work with the absolute addressing.
 pub fn sta(core: &mut Core) -> &mut Core {
     match core.ir {
         0x85_u8 => { // STA ZP
