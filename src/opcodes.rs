@@ -681,78 +681,62 @@ pub fn rol(core: &mut Core) -> &mut Core { core }
 pub fn ror(core: &mut Core) -> &mut Core { core } 
 
 pub fn sbc(core: &mut Core) -> &mut Core {
+    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
+    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+
+    let value: u8;
+    let inc: u16;
+    
     match core.ir {
-        0xE9_u8 => {}
+        0xE9_u8 => { // SBC IMM
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
+        }
         0xE5_u8 => { // SBC ZP
-            let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.
-
-            let zp: u8 = core.memory[core.memory[core.pc as usize + 1] as usize];
-
-            let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
-            
-            // Calculate A - M - Carry, zero extending all values:
-            let result: i16 = (core.acc as i16) - (zp as i16) - (borrow as i16);
-
-            core.acc = result as u8; // Clamp to 8 bits and store result
-
-            if result >= 0 { core.stat |= 0b00000001 } // set carry flag
-            else { core.stat &= !0b00000001 } // clear carry flag
-
-            if core.acc == 0 { core.stat |= 0b00000010 } // set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-
-            // Overflow flag logic:
-            let mem_sign: bool = (zp >> 7) & 0b1 != 0;
-            let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
-
-            if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
-            else { core.stat &= !0b01000000 } // clear overflow flag
-
-            core.pc += 2;
+            value = core.memory[core.memory[core.pc as usize + 1] as usize];
+            inc = 2;
         }
         0xF5_u8 => { // SBC ZPX
             // Get the zero page address by adding the x register to the value in memory
-            let zp_address: u8 = core.memory[core.pc as usize + 1];
-            let zp_x: u8 = zp_address.wrapping_add(core.ix);
-            let zp: u8 = core.memory[zp_x as usize];
-
-            let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.
-
-            let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
-            
-            // Calculate A - M - Carry, zero extending all values:
-            let result: i16 = (core.acc as i16) - (zp as i16) - (borrow as i16);
-
-            core.acc = result as u8; // Clamp to 8 bits and store result
-
-            if result >= 0 { core.stat |= 0b00000001 } // set carry flag
-            else { core.stat &= !0b00000001 } // clear carry flag
-
-            if core.acc == 0 { core.stat |= 0b00000010 } // set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-
-            // Overflow flag logic:
-            let mem_sign: bool = (zp >> 7) & 0b1 != 0;
-            let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
-
-            if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
-            else { core.stat &= !0b01000000 } // clear overflow flag
-
-            core.pc += 2;
+            let zp_x: u8 = core.memory[core.pc as usize + 1].wrapping_add(core.ix);
+            value =  core.memory[zp_x as usize];
+            inc = 2;
         }
-        0xED_u8 => {}
-        0xFD_u8 => {}
-        0xF9_u8 => {}
-        0xE1_u8 => {}
-        0xF1_u8 => {}
-        _ => unreachable!()
+        //0xED_u8 => {}
+        //0xFD_u8 => {}
+        //0xF9_u8 => {}
+        //0xE1_u8 => {}
+        //0xF1_u8 => {}
+        _ => { panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+    
+    let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.
+
+    let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
+            
+    // Calculate A - M - Carry, zero extending all values:
+    let result: i16 = (core.acc as i16) - (value as i16) - (borrow as i16);
+
+    core.acc = result as u8; // Clamp to 8 bits and store result
+
+    if result >= 0 { core.stat |= 0b00000001 } // set carry flag
+    else { core.stat &= !0b00000001 } // clear carry flag
+
+    if core.acc == 0 { core.stat |= 0b00000010 } // set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    // Overflow flag logic:
+    let mem_sign: bool = (value >> 7) & 0b1 != 0;
+    let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
+
+    if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
+    else { core.stat &= !0b01000000 } // clear overflow flag
+
+    core.pc += inc;
+
     core
 } 
 
