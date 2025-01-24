@@ -582,24 +582,30 @@ pub fn lda(core: &mut Core) -> &mut Core {
 } 
 
 pub fn ldx(core: &mut Core) -> &mut Core {
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
         0xA2_u8 => { // LDX IMM
-            core.ix = core.memory[core.pc as usize + 1];
-
-            if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.ix >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-
-            core.pc += 2;
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
         }
-        0xA6_u8 => {}
-        0xB6_u8 => {}
-        0xAE_u8 => {}
-        0xBE_u8 => {}
-        _ => unreachable!()
+        //0xA6_u8 => {}
+        //0xB6_u8 => {}
+        //0xAE_u8 => {}
+        //0xBE_u8 => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    core.ix = value;
+
+    if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((core.ix >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    core.pc += inc;
 
     core
 } 
