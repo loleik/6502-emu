@@ -479,25 +479,32 @@ pub fn eor(core: &mut Core) -> &mut Core {
 } 
 
 pub fn inc(core: &mut Core) -> &mut Core {
+    // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
+    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+
+    let address: u8;
+    let inc: u16;
+    
     match core.ir {
         0xE6 => { // INC ZP
-            let zp: u8 = core.memory[core.memory[core.pc as usize + 1] as usize];
-
-            core.memory[zp as usize] = core.memory[zp as usize].wrapping_add(1);
-
-            if core.memory[zp as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
-            else { core.stat &= !0b00000010 } // Clear zero flag
-            
-            if ((core.memory[zp as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // Clear negative flag
-
-            core.pc += 2
+            address = core.memory[core.memory[core.pc as usize + 1] as usize];
+            inc = 2
         }
-        0xF6 => {}
-        0xEE => {}
-        0xFE => {}
-        _ => unreachable!()
+        //0xF6 => {}
+        //0xEE => {}
+        //0xFE => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    core.memory[address as usize] = core.memory[address as usize].wrapping_add(1);
+
+    if core.memory[address as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+    
+    if ((core.memory[address as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += inc;
 
     core
 } 
