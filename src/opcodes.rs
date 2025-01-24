@@ -598,7 +598,10 @@ pub fn lda(core: &mut Core) -> &mut Core {
             value = Value::new(core, "zp");
             inc = 2;
         }
-        //0xb5_u8 => {}
+        0xb5_u8 => {
+            value = Value::new(core, "zpx");
+            inc = 2;
+        }
         0xad_u8 => { // LDA ABS
             value = Value::new(core, "abs");
             inc = 3;
@@ -624,22 +627,31 @@ pub fn lda(core: &mut Core) -> &mut Core {
 } 
 
 pub fn ldx(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0xA2_u8 => { // LDX IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
-        //0xA6_u8 => {}
-        //0xB6_u8 => {}
-        //0xAE_u8 => {}
+        0xA6_u8 => { // LDX ZP
+            value = Value::new(core, "zp");
+            inc = 2;
+        }
+        0xB6_u8 => { // LDX ZPY
+            value = Value::new(core, "zpy");
+            inc = 2;
+        }
+        0xAE_u8 => { // LDX ABS
+            value = Value::new(core, "abs");
+            inc = 3;
+        }
         //0xBE_u8 => {}
         _ => unreachable!()
     }
 
-    core.ix = value;
+    core.ix = value.get();
 
     if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -653,22 +665,31 @@ pub fn ldx(core: &mut Core) -> &mut Core {
 } 
 
 pub fn ldy(core: &mut Core) -> &mut Core {
-    let value: u8;
+    let value: Value;
     let inc: u16;
 
     match core.ir {
         0xa0_u8 => { // LDY IMM
-            value = core.memory[core.pc as usize + 1];
+            value = Value::new(core, "imm");
             inc = 2;
         }
-        //0xa4_u8 => {}
-        //0xb4_u8 => {}
-        //0xac_u8 => {}
+        0xa4_u8 => { // LDY ZP
+            value = Value::new(core, "zp");
+            inc = 2;
+        }
+        0xb4_u8 => { // LDY ZPX
+            value = Value::new(core, "zpx");
+            inc = 2;
+        }
+        0xac_u8 => { // LDY ABS
+            value = Value::new(core, "abs");
+            inc = 3;
+        }
         //0xbc_u8 => {}
         _ => unreachable!()
     }
 
-    core.iy = value;
+    core.iy = value.get();
 
     if core.iy == 0 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
