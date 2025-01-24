@@ -611,26 +611,30 @@ pub fn ldx(core: &mut Core) -> &mut Core {
 } 
 
 pub fn ldy(core: &mut Core) -> &mut Core {
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
         0xa0_u8 => { // LDY IMM
-            core.iy = core.memory[core.pc as usize + 1];
-
-            if core.memory[core.pc as usize + 1] == 0 {
-                core.stat |= 0b00000010;
-            } // Set zero flag
-            else { core.stat &= !0b00000010 } // clear zero flag
-
-            if ((core.iy >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
-            else { core.stat &= !0b10000000 } // clear negative flag
-
-            core.pc += 2;
+            value = core.memory[core.pc as usize + 1];
+            inc = 2;
         }
-        0xa4_u8 => {}
-        0xb4_u8 => {}
-        0xac_u8 => {}
-        0xbc_u8 => {}
-        _ => unreachable!()
+        //0xa4_u8 => {}
+        //0xb4_u8 => {}
+        //0xac_u8 => {}
+        //0xbc_u8 => {}
+        _ => {  panic!("{:?}", core.info) } // Not very graceful, but will work for now.
     }
+
+    core.iy = value;
+
+    if core.iy == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((core.iy >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    core.pc += inc;
 
     core
 } 
