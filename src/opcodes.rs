@@ -1,56 +1,5 @@
 use crate::system::Core;
 
-use bcd_convert::BcdNumber;
-
-#[derive(Debug)]
-enum Value {
-    U8(u8),
-    I16(i16),
-    Bcd(BcdNumber),
-}
-
-impl Value {
-    fn new(value: u8, decimal: bool) -> Self {
-        if decimal {
-            Value::Bcd(BcdNumber::from_u64(value as u64))
-        } else {
-            Value::U8(value)
-        }
-    }
-
-    fn get(&self) -> u8 {
-        match self {
-            Value::U8(value) => *value,
-            Value::I16(value) => *value as u8,
-            Value::Bcd(value) => value.to_u64().unwrap() as u8,
-        }
-    }
-
-    fn adc(a: &Self, b: &Self, c: &Self) -> Self {
-        match (a, b, c) {
-            (Value::U8(a), Value::U8(b), Value::U8(c)) => {
-                Value::I16(((*a as i16).wrapping_add(*b as i16)).wrapping_add(*c as i16))
-            },
-            // BCD addition can be done by converting to u64, doing it normally, then converting back.
-            (Value::Bcd(a), Value::Bcd(b), Value::Bcd(c)) => {
-                let a_b: BcdNumber = {
-                    let zero = a.get_digit(0).unwrap().wrapping_add(b.get_digit(0).unwrap());
-                    let one = a.get_digit(1).unwrap().wrapping_add(b.get_digit(1).unwrap());
-                    BcdNumber::from_u64((((zero as u16) << 8) | (one as u16)) as u64)
-                };
-
-                let result: BcdNumber = {
-                    let zero = a_b.get_digit(0).unwrap().wrapping_add(c.get_digit(0).unwrap());
-                    let one = a_b.get_digit(1).unwrap().wrapping_add(c.get_digit(1).unwrap());
-                    BcdNumber::from_u64((((zero as u16) << 8) | (one as u16)) as u64)
-                };
-                Value::Bcd(result)
-            },
-            _ => panic!("Mismatched types"),
-        }
-    }
-}
-
 fn absolute(core: &mut Core) -> u16 {
     let pcl: u8 = core.memory[core.pc as usize + 1];
     let pch: u8 = core.memory[core.pc as usize + 2];
@@ -62,25 +11,25 @@ fn absolute(core: &mut Core) -> u16 {
 
 pub fn adc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
-    let value: Value;
+    let value: u8;
     let inc: u16;
 
     match core.ir {
         0x69_u8 => { // ADC IMMmut
-            value = Value::new(core.memory[core.pc as usize + 1], decimal);
+            value = core.memory[core.pc as usize + 1];
             inc = 2;
         }
         0x65_u8 => { // ADC ZP
             let zp: usize = core.memory[core.pc as usize + 1] as usize;
-            value = Value::new(core.memory[zp], decimal);
+            value = core.memory[zp];
             inc = 2;
         }
         0x75_u8 => { // ADC ZPX
             let zp_address: u8 = core.memory[core.pc as usize + 1];
             let zp_x: u8 = zp_address.wrapping_add(core.ix);
-            value = Value::new(core.memory[zp_x as usize], decimal);
+            value = core.memory[zp_x as usize];
             inc = 2;
         }
         //0x6d_u8 => {}
@@ -94,20 +43,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     let borrow: u8 = if core.stat & 0b1 != 0 { 1 } else { 0 }; // Equal to carry bit
 
     // Calculate A + M + Carry, zero extending all values:
-    let acc: Value = Value::new(core.acc, decimal);
-    let brw: Value = Value::new(borrow, decimal);
-    let result_val: Value = Value::adc(&acc, &value, &brw);
-    //let result: i16 = (core.acc as i16) + (value.get() as i16) + (borrow as i16);
-
-    let result = match result_val {
-        Value::I16(r ) => {
-            r
-        },
-        Value::Bcd(r) => {
-            r.to_u64().unwrap() as i16
-        },
-        _ => unreachable!()
-    };
+    let result: i16 = (core.acc as i16) + (value as i16) + (borrow as i16);
 
     let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check before addition.
 
@@ -123,7 +59,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     else { core.stat &= !0b10000000 } // clear negative flag
 
     // Overflow flag logic:
-    let mem_sign: bool = (value.get() >> 7) & 0b1 != 0;
+    let mem_sign: bool = (value >> 7) & 0b1 != 0;
     let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
 
     if acc_sign == mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
@@ -370,7 +306,7 @@ pub fn txs(core: &mut Core) -> &mut Core {
 
 pub fn cmp(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
     let value: u8;
     let inc: u16;
@@ -415,7 +351,7 @@ pub fn cpx(core: &mut Core) -> &mut Core { core }
 
 pub fn cpy(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
     let value: u8;
     let inc: u16;
@@ -740,7 +676,7 @@ pub fn ror(core: &mut Core) -> &mut Core { core }
 
 pub fn sbc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
     let value: u8;
     let inc: u16;
