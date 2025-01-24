@@ -331,13 +331,61 @@ pub fn sed(core: &mut Core) -> &mut Core {
 
 pub fn sei(core: &mut Core) -> &mut Core { core } 
 
-pub fn tax(core: &mut Core) -> &mut Core { core } 
+pub fn tax(core: &mut Core) -> &mut Core {
+    core.ix = core.acc;
 
-pub fn txa(core: &mut Core) -> &mut Core { core } 
+    if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
 
-pub fn tay(core: &mut Core) -> &mut Core { core } 
+    if ((core.ix >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
 
-pub fn tya(core: &mut Core) -> &mut Core { core } 
+    core.pc += 1;
+
+    core
+} 
+
+pub fn txa(core: &mut Core) -> &mut Core {
+    core.acc = core.ix;
+
+    if core.acc == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += 1;
+
+    core
+} 
+
+pub fn tay(core: &mut Core) -> &mut Core {
+    core.iy = core.acc;
+
+    if core.iy == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if ((core.iy >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += 1;
+
+    core
+} 
+
+pub fn tya(core: &mut Core) -> &mut Core {
+    core.acc = core.iy;
+
+    if core.acc == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn tsx(core: &mut Core) -> &mut Core { core } 
 
