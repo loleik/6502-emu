@@ -1,29 +1,32 @@
 use crate::system::Core;
 
 enum Value {
-    Byte(u8),
-    Address(u16),
+    U8(u8),
+    U16(u16),
 }
 
 impl Value {
     fn new(core: &mut Core, mode: &str) -> Self {
         match mode {
-            "imm" => Value::Byte(
+            "imm" => Value::U8(
                 core.memory[core.pc as usize + 1]
             ),
-            "zp" => Value::Byte(
+            "zp" => Value::U8(
                 core.memory[core.memory[core.pc as usize + 1] as usize]
             ),
-            "zpx" => Value::Byte(
+            "zp_addr" => Value::U8(
+                core.memory[core.pc as usize + 1]
+            ),
+            "zpx" => Value::U8(
                 core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.ix)) as usize]
             ),
-            "zpy" => Value::Byte(
+            "zpy" => Value::U8(
                 core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.iy)) as usize]
             ),
-            "abs_val" => Value::Byte(
+            "abs_val" => Value::U8(
                 core.memory[absolute(core) as usize]
             ),
-            "abs_add" => Value::Address(
+            "abs_addr" => Value::U16(
                 absolute(core)
             ),
             _ => unreachable!("{:?}", core.info),
@@ -32,14 +35,14 @@ impl Value {
 
     fn get_u8(&self) -> u8 {
         match self {
-            Value::Byte(value) => *value,
+            Value::U8(value) => *value,
             _ => unreachable!(),
         }
     }
 
     fn get_u16(&self) -> u16 {
         match self {
-            Value::Address(value) => *value,
+            Value::U16(value) => *value,
             _ => unreachable!(),
         }
     }
@@ -917,27 +920,33 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     core
 } 
 
-// NOTE refactor to use Value struct
-pub fn sta(core: &mut Core) -> &mut Core {    
+pub fn sta(core: &mut Core) -> &mut Core {
+    let address: Value;
+    let inc: u16;
+
     match core.ir {
         0x85_u8 => { // STA ZP
-            core.memory[core.memory[core.pc as usize + 1] as usize] = core.acc;
-            core.pc += 2;
+            address = Value::new(core, "zp_addr");
+            inc = 2;
         }
-        0x95_u8 => {}
+        //0x95_u8 => {}
         0x8d_u8 => { // STA ABS
-            let address: u16 = absolute(core);
-
-            core.memory[address as usize] = core.acc;
-
-            core.pc += 3;
+            address = Value::new(core, "abs_addr");
+            inc = 3;
         }
-        0x9d_u8 => {}
-        0x99_u8 => {}
-        0x81_u8 => {}
-        0x91_u8 => {}
+        //0x9d_u8 => {}
+        //0x99_u8 => {}
+        //0x81_u8 => {}
+        //0x91_u8 => {}
         _ => unreachable!("{:?}", core.info)
     }
+
+    match address {
+        Value::U8(addr) => core.memory[addr as usize] = core.acc,
+        Value::U16(addr) => core.memory[addr as usize] = core.acc,
+    }
+
+    core.pc += inc;
 
     core
 } 
