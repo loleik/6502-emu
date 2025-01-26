@@ -1,34 +1,46 @@
 use crate::system::Core;
 
 enum Value {
-    Target(u8),
+    Byte(u8),
+    Address(u16),
 }
 
 impl Value {
     fn new(core: &mut Core, mode: &str) -> Self {
         match mode {
-            "imm" => Value::Target(
+            "imm" => Value::Byte(
                 core.memory[core.pc as usize + 1]
             ),
-            "zp" => Value::Target(
+            "zp" => Value::Byte(
                 core.memory[core.memory[core.pc as usize + 1] as usize]
             ),
-            "zpx" => Value::Target(
+            "zpx" => Value::Byte(
                 core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.ix)) as usize]
             ),
-            "zpy" => Value::Target(
+            "zpy" => Value::Byte(
                 core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.iy)) as usize]
             ),
-            "abs" => Value::Target(
+            "abs_val" => Value::Byte(
                 core.memory[absolute(core) as usize]
+            ),
+            "abs_add" => Value::Address(
+                absolute(core)
             ),
             _ => unreachable!("{:?}", core.info),
         }
     }
 
-    fn get(&self) -> u8 {
+    fn get_u8(&self) -> u8 {
         match self {
-            Value::Target(value) => *value,
+            Value::Byte(value) => *value,
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_u16(&self) -> u16 {
+        match self {
+            Value::Address(value) => *value,
+            _ => unreachable!(),
         }
     }
 }
@@ -73,7 +85,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     let borrow: u8 = if core.stat & 0b1 != 0 { 1 } else { 0 }; // Equal to carry bit
 
     // Calculate A + M + Carry, zero extending all values:
-    let result: i16 = (core.acc as i16) + (value.get() as i16) + (borrow as i16);
+    let result: i16 = (core.acc as i16) + (value.get_u8() as i16) + (borrow as i16);
 
     let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check before addition.
 
@@ -89,7 +101,7 @@ pub fn adc(core: &mut Core) -> &mut Core {
     else { core.stat &= !0b10000000 } // clear negative flag
 
     // Overflow flag logic:
-    let mem_sign: bool = (value.get() >> 7) & 0b1 != 0;
+    let mem_sign: bool = (value.get_u8() >> 7) & 0b1 != 0;
     let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
 
     if acc_sign == mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
@@ -119,7 +131,7 @@ pub fn and(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.acc &= value.get();
+    core.acc &= value.get_u8();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -442,10 +454,10 @@ pub fn cmp(core: &mut Core) -> &mut Core {
     }
 
     // Calculate A - M, zero extending both values:
-    let result: i16 = (core.acc as i16) - (value.get() as i16);
+    let result: i16 = (core.acc as i16) - (value.get_u8() as i16);
 
     // Check the result and set flags:
-    if core.acc >= value.get() { core.stat |= 0b00000001 } // Carry flag
+    if core.acc >= value.get_u8() { core.stat |= 0b00000001 } // Carry flag
     else { core.stat &= !0b00000001 } // Clear carry flag
 
     if (result & 0xFF) == 0 { core.stat |= 0b00000010 } // Zero flag
@@ -477,7 +489,7 @@ pub fn cpx(core: &mut Core) -> &mut Core {
     }
 
     // Calculate Y - M, zero extending both values:
-    let result: i16 = (core.ix as i16) - (value.get() as i16);
+    let result: i16 = (core.ix as i16) - (value.get_u8() as i16);
 
     // Check the result and set flags:
     if result >= 0 { core.stat |= 0b00000001 } // Carry flag
@@ -512,7 +524,7 @@ pub fn cpy(core: &mut Core) -> &mut Core {
     }
 
     // Calculate Y - M, zero extending both values:
-    let result: i16 = (core.iy as i16) - (value.get() as i16);
+    let result: i16 = (core.iy as i16) - (value.get_u8() as i16);
 
     // Check the result and set flags:
     if result >= 0 { core.stat |= 0b00000001 } // Carry flag
@@ -610,7 +622,7 @@ pub fn eor(core: &mut Core) -> &mut Core {
     }
 
     // Calculate A ^ M
-    core.acc ^= value.get();
+    core.acc ^= value.get_u8();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // Clear zero flag
@@ -638,12 +650,12 @@ pub fn inc(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.memory[address.get() as usize] = core.memory[address.get() as usize].wrapping_add(1);
+    core.memory[address.get_u8() as usize] = core.memory[address.get_u8() as usize].wrapping_add(1);
 
-    if core.memory[address.get() as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    if core.memory[address.get_u8() as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // Clear zero flag
     
-    if ((core.memory[address.get() as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    if ((core.memory[address.get_u8() as usize] >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
     else { core.stat &= !0b10000000 } // Clear negative flag
 
     core.pc += inc;
@@ -707,7 +719,7 @@ pub fn lda(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xad_u8 => { // LDA ABS
-            value = Value::new(core, "abs");
+            value = Value::new(core, "abs_val");
             inc = 3;
         }
         //0xbd_u8 => {}
@@ -717,7 +729,7 @@ pub fn lda(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.acc = value.get();
+    core.acc = value.get_u8();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -748,14 +760,14 @@ pub fn ldx(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xAE_u8 => { // LDX ABS
-            value = Value::new(core, "abs");
+            value = Value::new(core, "abs_val");
             inc = 3;
         }
         //0xBE_u8 => {}
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.ix = value.get();
+    core.ix = value.get_u8();
 
     if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -786,14 +798,14 @@ pub fn ldy(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xac_u8 => { // LDY ABS
-            value = Value::new(core, "abs");
+            value = Value::new(core, "abs_val");
             inc = 3;
         }
         //0xbc_u8 => {}
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.iy = value.get();
+    core.iy = value.get_u8();
 
     if core.iy == 0 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -830,7 +842,7 @@ pub fn ora(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
 
-    core.acc |= value.get();
+    core.acc |= value.get_u8();
 
     if core.acc == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
@@ -864,7 +876,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xF5_u8 => { // SBC ZPX
-            value = Value::new(core, "zp_x");
+            value = Value::new(core, "zpx");
             inc = 2;
         }
         //0xED_u8 => {}
@@ -880,7 +892,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
             
     // Calculate A - M - Carry, zero extending all values:
-    let result: i16 = (core.acc as i16) - (value.get() as i16) - (borrow as i16);
+    let result: i16 = (core.acc as i16) - (value.get_u8() as i16) - (borrow as i16);
 
     core.acc = result as u8; // Clamp to 8 bits and store result
 
@@ -894,7 +906,7 @@ pub fn sbc(core: &mut Core) -> &mut Core {
     else { core.stat &= !0b10000000 } // clear negative flag
 
     // Overflow flag logic:
-    let mem_sign: bool = (value.get() >> 7) & 0b1 != 0;
+    let mem_sign: bool = (value.get_u8() >> 7) & 0b1 != 0;
     let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
 
     if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
