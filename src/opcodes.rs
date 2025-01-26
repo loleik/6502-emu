@@ -952,27 +952,55 @@ pub fn sta(core: &mut Core) -> &mut Core {
 } 
 
 pub fn stx(core: &mut Core) -> &mut Core {
+    let address: Value;
+    let inc: u16;
+
     match core.ir {
-        0x86_u8 => {}
-        0x96_u8 => {}
-        0x8e_u8 => {}
+        0x86_u8 => { // STY ZP
+            address = Value::new(core, "zp_addr");
+            inc = 2;
+        }
+        //0x96_u8 => {}
+        0x8e_u8 => { // STY ABS
+            address = Value::new(core, "abs_addr");
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
+
+    match address {
+        Value::U8(addr) => core.memory[addr as usize] = core.ix,
+        Value::U16(addr) => core.memory[addr as usize] = core.ix,
+    }
+
+    core.pc += inc;
 
     core
 } 
 
-// NOTE refactor to use Value struct
 pub fn sty(core: &mut Core) -> &mut Core {
+    let address: Value;
+    let inc: u16;
+
     match core.ir {
         0x84_u8 => { // STY ZP
-            core.memory[core.memory[core.pc as usize + 1] as usize] = core.iy;
-            core.pc += 2;
+            address = Value::new(core, "zp_addr");
+            inc = 2;
         }
-        0x94_u8 => {}
-        0x8c_u8 => {}
+        //0x94_u8 => {}
+        0x8c_u8 => { // STY ABS
+            address = Value::new(core, "abs_addr");
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
+
+    match address {
+        Value::U8(addr) => core.memory[addr as usize] = core.iy,
+        Value::U16(addr) => core.memory[addr as usize] = core.iy,
+    }
+
+    core.pc += inc;
 
     core
 } 
