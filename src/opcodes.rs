@@ -8,20 +8,23 @@ enum Value {
 impl Value {
     fn new(core: &mut Core, mode: &str) -> Self {
         match mode {
+            "acc" => Value::U8(
+                core.acc
+            ),
             "imm" => Value::U8(
                 core.memory[core.pc as usize + 1]
             ),
             "zp" => Value::U8(
-                core.memory[core.memory[core.pc as usize + 1] as usize]
+                core.memory[core.pc as usize + 1]
             ),
             "zp_addr" => Value::U8(
                 core.memory[core.pc as usize + 1]
             ),
             "zpx" => Value::U8(
-                core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.ix)) as usize]
+                core.memory[core.pc as usize + 1].wrapping_add(core.ix)
             ),
             "zpy" => Value::U8(
-                core.memory[(core.memory[core.pc as usize + 1].wrapping_add(core.iy)) as usize]
+                core.memory[core.pc as usize + 1].wrapping_add(core.iy)
             ),
             "abs_val" => Value::U8(
                 core.memory[absolute(core) as usize]
@@ -124,8 +127,14 @@ pub fn and(core: &mut Core) -> &mut Core {
             value = Value::new(core, "imm");
             inc = 2;
         }
-        //0x25_u8 => {}
-        //0x35_u8 => {}
+        0x25_u8 => { // AND ZP
+            value = Value::new(core, "zp");
+            inc = 2;
+        }
+        0x35_u8 => { // AND ZPX
+            value = Value::new(core, "zpx");
+            inc = 2;
+        }
         //0x2d_u8 => {}
         //0x3d_u8 => {}
         //0x39_u8 => {}
@@ -147,7 +156,50 @@ pub fn and(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn asl(core: &mut Core) -> &mut Core { core } 
+pub fn asl(core: &mut Core) -> &mut Core {
+    let new_carry: bool;
+    let inc: u16;
+    let result: Value;
+
+    match core.ir {
+        0xa0_u8 => { // ASL ACC
+            new_carry = if (core.acc >> 7) & 0b1 != 0 { true } else { false };
+            core.acc <<= 1;
+            result = Value::U8(core.acc);
+            inc = 1;
+        }
+        0x06_u8 => { // ASL ZP
+            let zp: u8 = Value::new(core, "zp_addr").get_u8();
+            new_carry = if (core.memory[zp as usize] >> 7) & 0b1 != 0 { true } else { false };
+            core.memory[zp as usize] <<= 1;
+            result = Value::U8(core.memory[zp as usize]);
+            inc = 2;
+        }
+        0x16_u8 => { // ASL ZPX
+
+        }
+        //0x0e_u8 => {}
+        //0x1e_u8 => {}
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    match result.get_u8() {
+        0x00 => { core.stat |= 0b00000010 } // Set zero flag
+        _ => { core.stat &= !0b00000010 } // Clear zero flag
+    }
+
+    if (result.get_u8() >> 7) & 0b1 == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    match new_carry {
+        true => { core.stat |= 0b00000001 } // Set carry flag
+        false => { core.stat &= !0b00000001 } // Clear carry flag
+    }
+    
+    core.pc += inc;
+
+    core
+} 
 
 pub fn bcc(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
