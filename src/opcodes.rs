@@ -40,7 +40,7 @@ impl Value {
         }
     }
 
-    fn get_u16(&self) -> u16 {
+    fn _get_u16(&self) -> u16 {
         match self {
             Value::U16(value) => *value,
             _ => unreachable!(),
