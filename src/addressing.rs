@@ -24,3 +24,7 @@ pub fn absolute(core: &mut Core) -> u16 {
 
     ((pch as u16) << 8) | (pcl as u16)
 }
+
+pub fn relative(core: &mut Core) -> i8 {
+    core.memory[(core.pc as usize) + 1] as i8
+}

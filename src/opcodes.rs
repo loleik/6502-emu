@@ -1,5 +1,5 @@
 use crate::system::Core;
-use crate::addressing::{absolute, zero_page, zero_page_x, zero_page_y};
+use crate::addressing::{absolute, relative, zero_page, zero_page_x, zero_page_y};
 
 enum Value {
     U8(u8),
@@ -168,9 +168,7 @@ pub fn bcc(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if core.stat & 0b1 == 0 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
 
     core.pc += 2;
@@ -182,9 +180,7 @@ pub fn bcs(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if core.stat & 0b1 == 1 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
     
     core.pc += 2;
@@ -196,9 +192,7 @@ pub fn beq(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if (core.stat >> 1) & 0b1 == 1 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
     
     core.pc += 2;
@@ -210,9 +204,7 @@ pub fn bmi(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if (core.stat >> 7) & 0b1 == 1 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
     
     core.pc += 2;
@@ -224,9 +216,7 @@ pub fn bne(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if (core.stat >> 1) & 0b1 == 0 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
     
     core.pc += 2;
@@ -238,9 +228,7 @@ pub fn bpl(core: &mut Core) -> &mut Core {
     // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
     // Add this value to program counter casted as an i32 safely to handle overflow
     if (core.stat >> 7) & 0b1 == 0 {
-        let signed_offset: i8 = core.memory[(core.pc as usize) + 1] as i8;
-
-        core.pc = ((core.pc as i32) + (signed_offset as i32)) as u16;
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
     }
     
     core.pc += 2;
@@ -248,9 +236,29 @@ pub fn bpl(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn bvc(core: &mut Core) -> &mut Core { core } 
+pub fn bvc(core: &mut Core) -> &mut Core {
+    // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if (core.stat >> 6) & 0b1 == 0 {
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
+    }
+    
+    core.pc += 2;
 
-pub fn bvs(core: &mut Core) -> &mut Core { core } 
+    core
+} 
+
+pub fn bvs(core: &mut Core) -> &mut Core {
+        // Grab signed offset safely casted as a signed 32 bit integer to handle overflow safely
+    // Add this value to program counter casted as an i32 safely to handle overflow
+    if (core.stat >> 6) & 0b1 == 1 {
+        core.pc = ((core.pc as i32) + (relative(core) as i32)) as u16;
+    }
+    
+    core.pc += 2;
+
+    core
+} 
 
 pub fn bit(core: &mut Core) -> &mut Core { core } 
 
@@ -297,9 +305,21 @@ pub fn cld(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn cli(core: &mut Core) -> &mut Core { core } 
+pub fn cli(core: &mut Core) -> &mut Core {
+    core.stat = core.stat & 0b11111011; // Clear interrupt flag
 
-pub fn clv(core: &mut Core) -> &mut Core { core } 
+    core.pc += 1;
+
+    core
+} 
+
+pub fn clv(core: &mut Core) -> &mut Core {
+    core.stat = core.stat & 0b10111111; // Clear overflow flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn nop(core: &mut Core) -> &mut Core {
     core.pc += 1;
@@ -307,7 +327,16 @@ pub fn nop(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn pha(core: &mut Core) -> &mut Core { core } 
+pub fn pha(core: &mut Core) -> &mut Core {
+    // Push accumulator to stack.
+    core.memory[(0x100 | core.sp as u16) as usize] = core.acc;
+
+    core.sp -= 1; // Descend stack pointer
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn pla(core: &mut Core) -> &mut Core {
     // Set accumulator to value from the stack
@@ -341,7 +370,20 @@ pub fn php(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn plp(core: &mut Core) -> &mut Core { core } 
+pub fn plp(core: &mut Core) -> &mut Core {
+    // Set status to value from the stack
+    core.stat = core.memory[(0x100 | (core.sp as u16 + 1)) as usize];
+
+    // Wipe the value from the stack
+    core.memory[(0x100 | (core.sp as u16 + 1)) as usize] = 0x00;
+
+    // Increment stack pointer
+    core.sp += 1;
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn rti(core: &mut Core) -> &mut Core { core } 
 
@@ -378,7 +420,12 @@ pub fn sed(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn sei(core: &mut Core) -> &mut Core { core } 
+pub fn sei(core: &mut Core) -> &mut Core {
+    core.stat |= 0b00000100; // Set interrupt flag
+    core.pc += 1;
+
+    core
+} 
 
 pub fn tax(core: &mut Core) -> &mut Core {
     core.ix = core.acc;
@@ -436,7 +483,19 @@ pub fn tya(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn tsx(core: &mut Core) -> &mut Core { core } 
+pub fn tsx(core: &mut Core) -> &mut Core {
+    core.ix = core.sp;
+
+    if core.ix == 0 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if ((core.ix >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += 1;
+
+    core
+} 
 
 pub fn txs(core: &mut Core) -> &mut Core {
     core.sp = core.ix;
@@ -560,7 +619,17 @@ pub fn cpy(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn dec(core: &mut Core) -> &mut Core { core } 
+pub fn dec(core: &mut Core) -> &mut Core {
+    match core.ir {
+        //0xc6 => {}
+        //0xd6 => {}
+        //0xce => {}
+        //0xde => {}
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    //core
+} 
 
 pub fn dex(core: &mut Core) -> &mut Core {
     core.ix = core.ix.wrapping_sub(1);
