@@ -436,3 +436,49 @@ pub fn emulator(prefix_tree: &Trie) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_core_initialization() {
+        let core = Core::new();
+        assert_eq!(core.acc, 0);
+        assert_eq!(core.stat, 0);
+        assert_eq!(core.pc, 0);
+        assert_eq!(core.sp, 0);
+        assert_eq!(core.ix, 0);
+        assert_eq!(core.iy, 0);
+        assert_eq!(core.ir, 0);
+        assert!(core.decoded.is_none());
+        assert!(core.info.is_none());
+        assert_eq!(core.memory, [0; 65536]);
+    }
+
+    #[test]
+    fn test_set_pc() {
+        let mut core = Core::new();
+        set_pc(&mut core, 0x200);
+        assert_eq!(core.pc, 0x200);
+        assert_eq!(core.memory[0xFFFC], 0x00);
+        assert_eq!(core.memory[0xFFFD], 0x02);
+    }
+
+    #[test]
+    fn test_parse_hex() {
+        assert_eq!(parse_hex("0x1A2B"), Ok(0x1A2B));
+        assert_eq!(parse_hex("1A2B"), Err("Value must start with 0x".to_string()));
+        assert_eq!(parse_hex("0xZZZZ"), Err("Invalid hex value: invalid digit found in string".to_string()));
+    }
+    
+    #[test]
+    fn test_load_data() {
+        let mut core = Core::new();
+        let data = vec![0x01, 0x02, 0x03, 0x04];
+        fs::write("test.bin", &data).unwrap();
+        load_data(&mut core, "test.bin".to_string(), 0x1000);
+        assert_eq!(&core.memory[0x1000..0x1004], &data[..]);
+        fs::remove_file("test.bin").unwrap();
+    }
+}
