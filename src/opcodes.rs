@@ -498,12 +498,12 @@ pub fn cpx(core: &mut Core) -> &mut Core {
     let inc: u16;
 
     match core.ir {
-        0xC0 => { // CPY IMM
+        0xe0 => { // CPX IMM
             value = core.memory[core.pc as usize + 1];
             inc = 2;
         }
-        //0xC4 => {}
-        //0xCC => {}
+        //0xe4 => {}
+        //0xec => {}
         _ => unreachable!("{:?}", core.info)
     }
 
