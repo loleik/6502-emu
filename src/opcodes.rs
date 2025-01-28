@@ -17,9 +17,6 @@ impl Value {
             "zp" => Value::U8(
                 core.memory[core.pc as usize + 1]
             ),
-            "zp_addr" => Value::U8(
-                core.memory[core.pc as usize + 1]
-            ),
             "zpx" => Value::U8(
                 core.memory[core.pc as usize + 1].wrapping_add(core.ix)
             ),
@@ -73,11 +70,13 @@ pub fn adc(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0x65_u8 => { // ADC ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         0x75_u8 => { // ADC ZPX
-            value = Value::new(core, "zpx");
+            let zpx: Value = Value::new(core, "zpx");
+            value = Value::U8(core.memory[zpx.get_u8() as usize]);
             inc = 2;
         }
         //0x6d_u8 => {}
@@ -128,11 +127,13 @@ pub fn and(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0x25_u8 => { // AND ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         0x35_u8 => { // AND ZPX
-            value = Value::new(core, "zpx");
+            let zpx: Value = Value::new(core, "zpx");
+            value = Value::U8(core.memory[zpx.get_u8() as usize]);
             inc = 2;
         }
         //0x2d_u8 => {}
@@ -169,14 +170,18 @@ pub fn asl(core: &mut Core) -> &mut Core {
             inc = 1;
         }
         0x06_u8 => { // ASL ZP
-            let zp: u8 = Value::new(core, "zp_addr").get_u8();
+            let zp: u8 = Value::new(core, "zp").get_u8();
             new_carry = if (core.memory[zp as usize] >> 7) & 0b1 != 0 { true } else { false };
             core.memory[zp as usize] <<= 1;
             result = Value::U8(core.memory[zp as usize]);
             inc = 2;
         }
         0x16_u8 => { // ASL ZPX
-
+            let zpx: u8 = Value::new(core, "zpx").get_u8();
+            new_carry = if (core.memory[zpx as usize] >> 7) & 0b1 != 0 { true } else { false };
+            core.memory[zpx as usize] <<= 1;
+            result = Value::U8(core.memory[zpx as usize]);
+            inc = 2;
         }
         //0x0e_u8 => {}
         //0x1e_u8 => {}
@@ -496,7 +501,8 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xC5 => { // CMP ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         //0xD5 => {}
@@ -664,7 +670,8 @@ pub fn eor(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0x45 => { // EOR ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         //0x55 => {}
@@ -696,8 +703,9 @@ pub fn inc(core: &mut Core) -> &mut Core {
     
     match core.ir {
         0xE6 => { // INC ZP
-            address = Value::new(core, "zp");
-            inc = 2
+            let zp: Value = Value::new(core, "zp");
+            address = Value::U8(core.memory[zp.get_u8() as usize]);
+            inc = 2;
         }
         //0xF6 => {}
         //0xEE => {}
@@ -766,11 +774,13 @@ pub fn lda(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xa5_u8 => { // LDA ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
-        0xb5_u8 => {
-            value = Value::new(core, "zpx");
+        0xb5_u8 => { // LDA ZPX
+            let zpx: Value = Value::new(core, "zpx");
+            value = Value::U8(core.memory[zpx.get_u8() as usize]);
             inc = 2;
         }
         0xad_u8 => { // LDA ABS
@@ -807,11 +817,13 @@ pub fn ldx(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xA6_u8 => { // LDX ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         0xB6_u8 => { // LDX ZPY
-            value = Value::new(core, "zpy");
+            let zpy: Value = Value::new(core, "zpy");
+            value = Value::U8(core.memory[zpy.get_u8() as usize]);
             inc = 2;
         }
         0xAE_u8 => { // LDX ABS
@@ -845,11 +857,13 @@ pub fn ldy(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xa4_u8 => { // LDY ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         0xb4_u8 => { // LDY ZPX
-            value = Value::new(core, "zpx");
+            let zpx: Value = Value::new(core, "zpx");
+            value = Value::U8(core.memory[zpx.get_u8() as usize]);
             inc = 2;
         }
         0xac_u8 => { // LDY ABS
@@ -885,8 +899,9 @@ pub fn ora(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0x05_u8 => { // ORA ZP
-            value = Value::new(core, "zp");
-            inc= 2;
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
+            inc = 2;
         }
         //0x15_u8 => {}
         //0x0d_u8 => {}
@@ -927,11 +942,13 @@ pub fn sbc(core: &mut Core) -> &mut Core {
             inc = 2;
         }
         0xE5_u8 => { // SBC ZP
-            value = Value::new(core, "zp");
+            let zp: Value = Value::new(core, "zp");
+            value = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         0xF5_u8 => { // SBC ZPX
-            value = Value::new(core, "zpx");
+            let zpx: Value = Value::new(core, "zpx");
+            value = Value::U8(core.memory[zpx.get_u8() as usize]);
             inc = 2;
         }
         //0xED_u8 => {}
@@ -978,7 +995,8 @@ pub fn sta(core: &mut Core) -> &mut Core {
 
     match core.ir {
         0x85_u8 => { // STA ZP
-            address = Value::new(core, "zp_addr");
+            let zp: Value = Value::new(core, "zp");
+            address = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         //0x95_u8 => {}
@@ -1009,7 +1027,8 @@ pub fn stx(core: &mut Core) -> &mut Core {
 
     match core.ir {
         0x86_u8 => { // STY ZP
-            address = Value::new(core, "zp_addr");
+            let zp: Value = Value::new(core, "zp");
+            address = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         //0x96_u8 => {}
@@ -1036,7 +1055,8 @@ pub fn sty(core: &mut Core) -> &mut Core {
 
     match core.ir {
         0x84_u8 => { // STY ZP
-            address = Value::new(core, "zp_addr");
+            let zp: Value = Value::new(core, "zp");
+            address = Value::U8(core.memory[zp.get_u8() as usize]);
             inc = 2;
         }
         //0x94_u8 => {}
