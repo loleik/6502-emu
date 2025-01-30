@@ -1,5 +1,7 @@
 use crate::system::Core;
-use crate::addressing::{absolute, relative, zero_page, zero_page_x, zero_page_y};
+use crate::addressing::{zero_page, zero_page_x, zero_page_y,
+                        absolute, absolute_x, absolute_y,
+                        relative};
 
 enum Value {
     U8(u8),
@@ -37,9 +39,21 @@ pub fn adc(core: &mut Core) -> &mut Core {
             value = core.memory[zpx as usize];
             inc = 2;
         }
-        //0x6d_u8 => {}
-        //0x7d_u8 => {}
-        //0x79_u8 => {}
+        0x6d_u8 => { // ADC ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x7d_u8 => { // ADC ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0x79_u8 => { // ADC ABSY
+            let absx: u16 = absolute_y(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
         //0x61_u8 => {}
         //0x71_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -94,9 +108,21 @@ pub fn and(core: &mut Core) -> &mut Core {
             value = core.memory[zpx as usize];
             inc = 2;
         }
-        //0x2d_u8 => {}
-        //0x3d_u8 => {}
-        //0x39_u8 => {}
+        0x2d_u8 => { // AND ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x3d_u8 => { // AND ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0x39_u8 => { // AND ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0x21_u8 => {}
         //0x31_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -141,8 +167,20 @@ pub fn asl(core: &mut Core) -> &mut Core {
             result = core.memory[zpx as usize];
             inc = 2;
         }
-        //0x0e_u8 => {}
-        //0x1e_u8 => {}
+        0x0e_u8 => { // ASL ABS
+            let abs: u16 = absolute(core);
+            new_carry = if (core.memory[abs as usize] >> 7) & 0b1 != 0 { true } else { false };
+            core.memory[abs as usize] <<= 1;
+            result = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x1e_u8 => { // ASL ABSX
+            let absx: u16 = absolute_x(core);
+            new_carry = if (core.memory[absx as usize] >> 7) & 0b1 != 0 { true } else { false };
+            core.memory[absx as usize] <<= 1;
+            result = core.memory[absx as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -522,10 +560,26 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             value = core.memory[zp as usize];
             inc = 2;
         }
-        //0xD5 => {}
-        //0xCD => {}
-        //0xDD => {}
-        //0xD9 => {}
+        0xD5 => { // CMP ZPX
+            let zpx: u8 = zero_page_x(core);
+            value = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0xCD => { // CMP ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0xDD => { // CMP ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0xD9 => { // CMP ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0xC1 => {}
         //0xD1 => {}
         _ => unreachable!("{:?}", core.info)
@@ -561,8 +615,16 @@ pub fn cpx(core: &mut Core) -> &mut Core {
             value = core.memory[core.pc as usize + 1];
             inc = 2;
         }
-        //0xe4 => {}
-        //0xec => {}
+        0xe4 => { // CPX ZP
+            let zp: u8 = zero_page(core);
+            value = core.memory[zp as usize];
+            inc = 2;
+        }
+        0xec => { // CPX ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -596,8 +658,16 @@ pub fn cpy(core: &mut Core) -> &mut Core {
             value = core.memory[core.pc as usize + 1];
             inc = 2;
         }
-        //0xC4 => {}
-        //0xCC => {}
+        0xC4 => { // CPY ZP
+            let zp: u8 = zero_page(core);
+            value = core.memory[zp as usize];
+            inc = 2;
+        }
+        0xCC => { // CPY ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -701,10 +771,26 @@ pub fn eor(core: &mut Core) -> &mut Core {
             value = core.memory[zp as usize];
             inc = 2;
         }
-        //0x55 => {}
-        //0x4D => {}
-        //0x5D => {}
-        //0x59 => {}
+        0x55 => { // EOR ZPX
+            let zpx: u8 = zero_page_x(core);
+            value = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0x4D => { // EOR ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x5D => { // EOR ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0x59 => { // EOR ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0x41 => {}
         //0x51 => {}
         _ => unreachable!("{:?}", core.info)
@@ -733,9 +819,18 @@ pub fn inc(core: &mut Core) -> &mut Core {
             address = Value::U8(zero_page(core));
             inc = 2;
         }
-        //0xF6 => {}
-        //0xEE => {}
-        //0xFE => {}
+        0xF6 => { // INC ZPX
+            address = Value::U8(zero_page_x(core));
+            inc = 2;
+        }
+        0xEE => { // INC ABS
+            address = Value::U16(absolute(core));
+            inc = 3;
+        }
+        0xFE => { // INC ABSX
+            address = Value::U16(absolute_x(core));
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -743,7 +838,9 @@ pub fn inc(core: &mut Core) -> &mut Core {
         Value::U8(val) => {
             core.memory[val as usize] = core.memory[val as usize].wrapping_add(1);
         }
-        _ => unreachable!("{:?}", core.info)
+        Value::U16(val) => {
+            core.memory[val as usize] = core.memory[val as usize].wrapping_add(1);
+        }
     }
 
     if core.memory[address.get_u8() as usize] == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
@@ -819,8 +916,16 @@ pub fn lda(core: &mut Core) -> &mut Core {
             value = core.memory[abs as usize];
             inc = 3;
         }
-        //0xbd_u8 => {}
-        //0xb9_u8 => {}
+        0xbd_u8 => { // LDA ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0xb9_u8 => { // LDA ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0xa1_u8 => {}
         //0xb1_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -863,7 +968,11 @@ pub fn ldx(core: &mut Core) -> &mut Core {
             value = core.memory[abs as usize];
             inc = 3;
         }
-        //0xBE_u8 => {}
+        0xBE_u8 => { // LDX ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -904,7 +1013,11 @@ pub fn ldy(core: &mut Core) -> &mut Core {
             value = core.memory[abs as usize];
             inc = 3;
         }
-        //0xbc_u8 => {}
+        0xbc_u8 => { // LDY ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -937,10 +1050,26 @@ pub fn ora(core: &mut Core) -> &mut Core {
             value = core.memory[zp as usize];
             inc = 2;
         }
-        //0x15_u8 => {}
-        //0x0d_u8 => {}
-        //0x1d_u8 => {}
-        //0x19_u8 => {}
+        0x15_u8 => { // ORA ZPX
+            let zpx: u8 = zero_page_x(core);
+            value = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0x0d_u8 => { // ORA ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x1d_u8 => { // ORA ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0x19_u8 => { // ORA ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0x01_u8 => {}
         //0x11_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -985,9 +1114,21 @@ pub fn sbc(core: &mut Core) -> &mut Core {
             value = core.memory[zpx as usize];
             inc = 2;
         }
-        //0xED_u8 => {}
-        //0xFD_u8 => {}
-        //0xF9_u8 => {}
+        0xED_u8 => { // SBC ABS
+            let abs: u16 = absolute(core);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0xFD_u8 => { // SBC ABSX
+            let absx: u16 = absolute_x(core);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
+        0xF9_u8 => { // SBC ABSY
+            let absy: u16 = absolute_y(core);
+            value = core.memory[absy as usize];
+            inc = 3;
+        }
         //0xE1_u8 => {}
         //0xF1_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -1032,13 +1173,22 @@ pub fn sta(core: &mut Core) -> &mut Core {
             address = Value::U8(zero_page(core));
             inc = 2;
         }
-        //0x95_u8 => {}
+        0x95_u8 => { // STA ZPX
+            address = Value::U8(zero_page_x(core));
+            inc = 2;
+        }
         0x8d_u8 => { // STA ABS
             address = Value::U16(absolute(core));
             inc = 3;
         }
-        //0x9d_u8 => {}
-        //0x99_u8 => {}
+        0x9d_u8 => { // STA ABSX
+            address = Value::U16(absolute_x(core));
+            inc = 3;
+        }
+        0x99_u8 => { // STA ABSY
+            address = Value::U16(absolute_y(core));
+            inc = 3;
+        }
         //0x81_u8 => {}
         //0x91_u8 => {}
         _ => unreachable!("{:?}", core.info)
@@ -1063,7 +1213,10 @@ pub fn stx(core: &mut Core) -> &mut Core {
             address = Value::U8(zero_page(core));
             inc = 2;
         }
-        //0x96_u8 => {}
+        0x96_u8 => { // STY ZPX
+            address = Value::U8(zero_page_y(core));
+            inc = 2;
+        }
         0x8e_u8 => { // STY ABS
             address = Value::U16(absolute(core));
             inc = 3;
@@ -1090,7 +1243,10 @@ pub fn sty(core: &mut Core) -> &mut Core {
             address = Value::U8(zero_page(core));
             inc = 2;
         }
-        //0x94_u8 => {}
+        0x94_u8 => { // STY ZPX
+            address = Value::U8(zero_page_x(core));
+            inc = 2;
+        }
         0x8c_u8 => { // STY ABS
             address = Value::U16(absolute(core));
             inc = 3;

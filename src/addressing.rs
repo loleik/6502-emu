@@ -25,6 +25,20 @@ pub fn absolute(core: &mut Core) -> u16 {
     ((pch as u16) << 8) | (pcl as u16)
 }
 
+pub fn absolute_x(core: &mut Core) -> u16 {
+    let pcl: u8 = core.memory[core.pc as usize + 1];
+    let pch: u8 = core.memory[core.pc as usize + 2];
+
+    ((pch as u16) << 8) | (pcl as u16) + core.ix as u16
+}
+
+pub fn absolute_y(core: &mut Core) -> u16 {
+    let pcl: u8 = core.memory[core.pc as usize + 1];
+    let pch: u8 = core.memory[core.pc as usize + 2];
+
+    ((pch as u16) << 8) | (pcl as u16) + core.iy as u16
+}
+
 pub fn relative(core: &mut Core) -> i8 {
     core.memory[(core.pc as usize) + 1] as i8
 }

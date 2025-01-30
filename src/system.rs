@@ -251,7 +251,7 @@ fn main_loop(core: &mut Core, prefix_tree: &Trie) {
         io::stdout().flush().unwrap();
 
         // Skipping over iterations I've looked at closely
-        if core.stat & 0b00010000 != 0b00010000 && step {
+        if core.stat & 0b00010000 != 0b00010000 && step  {
             print!("Press Enter to step, or type 'q' to quit: ");
             io::stdout().flush().unwrap();
 
