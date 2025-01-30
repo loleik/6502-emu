@@ -1088,7 +1088,88 @@ pub fn ora(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn rol(core: &mut Core) -> &mut Core { core } 
+pub fn rol(core: &mut Core) -> &mut Core {
+    let old_carry: u8 = (core.stat & 0b00000001) >> 0;
+
+    let new_carry: bool;
+    let result: u8;
+    let inc: u16;
+
+    match core.ir {
+        0x2a => { // ROL ACC
+            new_carry = if (core.acc >> 7) & 0b1 != 0 { true } else { false };
+
+            core.acc <<= 1;
+
+            core.acc |= old_carry;
+
+            result = core.acc;
+            inc = 1;
+        }
+        0x26 => { // ROL ZP
+            let zp: u8 = zero_page(core);
+
+            new_carry = if (core.memory[zp as usize] >> 7) & 0b1 != 0 { true } else { false };
+
+            core.memory[zp as usize] <<= 1;
+
+            core.memory[zp as usize] |= old_carry;
+
+            result = core.memory[zp as usize];
+            inc = 2;
+        }
+        0x36 => {
+            let zpx: u8 = zero_page_x(core);
+
+            new_carry = if (core.memory[zpx as usize] >> 7) & 0b1 != 0 { true } else { false };
+
+            core.memory[zpx as usize] <<= 1;
+
+            core.memory[zpx as usize] |= old_carry;
+
+            result = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0x2e => { // ROL ABS
+            let abs: u16 = absolute(core);
+
+            new_carry = if (core.memory[abs as usize] >> 7) & 0b1 != 0 { true } else { false };
+
+            core.memory[abs as usize] <<= 1;
+
+            core.memory[abs as usize] |= old_carry;
+
+            result = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x3e => { // ROL ABSX
+            let absx: u16 = absolute_x(core);
+
+            new_carry = if (core.memory[absx as usize] >> 7) & 0b1 != 0 { true } else { false };
+
+            core.memory[absx as usize] <<= 1;
+
+            core.memory[absx as usize] |= old_carry;
+
+            result = core.memory[absx as usize];
+            inc = 3;
+        }
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    if result == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((result >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    if new_carry { core.stat |= 0b00000001 } // Set carry flag
+    else { core.stat &= !0b00000001 } // clear carry flag
+
+    core.pc += inc;
+
+    core
+} 
 
 pub fn ror(core: &mut Core) -> &mut Core { core } 
 
