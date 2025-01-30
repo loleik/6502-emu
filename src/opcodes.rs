@@ -1089,7 +1089,7 @@ pub fn ora(core: &mut Core) -> &mut Core {
 } 
 
 pub fn rol(core: &mut Core) -> &mut Core {
-    let old_carry: u8 = (core.stat & 0b00000001) >> 0;
+    let old_carry: u8 = core.stat & 0b00000001;
 
     let new_carry: bool;
     let result: u8;
@@ -1171,7 +1171,88 @@ pub fn rol(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn ror(core: &mut Core) -> &mut Core { core } 
+pub fn ror(core: &mut Core) -> &mut Core {
+    let old_carry: u8 = core.stat & 0b00000001;
+
+    let new_carry: bool;
+    let result: u8;
+    let inc: u16;
+
+    match core.ir {
+        0x6a => { // ROR ACC
+            new_carry = if (core.acc & 0b1) != 0 { true } else { false };
+
+            core.acc >>= 1;
+
+            core.acc |= old_carry << 7;
+
+            result = core.acc;
+            inc = 1;
+        }
+        0x66 => { // ROR ZP
+            let zp: u8 = zero_page(core);
+
+            new_carry = if (core.memory[zp as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[zp as usize] >>= 1;
+
+            core.memory[zp as usize] |= old_carry << 7;
+
+            result = core.memory[zp as usize];
+            inc = 2;
+        }
+        0x76 => { // ROR ZPX   
+            let zpx: u8 = zero_page_x(core);
+
+            new_carry = if (core.memory[zpx as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[zpx as usize] >>= 1;
+
+            core.memory[zpx as usize] |= old_carry << 7;
+
+            result = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0x7e => { // ROR ABSX
+            let abs: u16 = absolute(core);
+
+            new_carry = if (core.memory[abs as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[abs as usize] >>= 1;
+
+            core.memory[abs as usize] |= old_carry << 7;
+
+            result = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x6e => { // ROR ABSX
+            let absx: u16 = absolute_x(core);
+
+            new_carry = if (core.memory[absx as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[absx as usize] >>= 1;
+
+            core.memory[absx as usize] |= old_carry << 7;
+
+            result = core.memory[absx as usize];
+            inc = 3;
+        }
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    if result == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    if ((result >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // clear negative flag
+
+    if new_carry { core.stat |= 0b00000001 } // Set carry flag
+    else { core.stat &= !0b00000001 } // clear carry flag
+
+    core.pc += inc;
+
+    core
+} 
 
 pub fn sbc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
