@@ -53,6 +53,13 @@ pub fn indirect(core: &mut Core) -> u16 {
     ((th as u16) << 8) | (tl as u16)
 }
 
+/*
+pub fn x_indirect(core: &mut Core) -> u16 {
+}
+pub fn indirect_y(core: &mut Core) -> u16 {
+}
+*/
+
 pub fn relative(core: &mut Core) -> i8 {
     core.memory[(core.pc as usize) + 1] as i8
 }
