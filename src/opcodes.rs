@@ -1,7 +1,7 @@
 use crate::system::Core;
 use crate::addressing::{zero_page, zero_page_x, zero_page_y,
                         absolute, absolute_x, absolute_y,
-                        relative};
+                        indirect, relative};
 
 enum Value {
     U8(u8),
@@ -941,15 +941,19 @@ pub fn inc(core: &mut Core) -> &mut Core {
 
 // NOTE refactor to use Value struct
 pub fn jmp(core: &mut Core) -> &mut Core {
+    let address: u16;
+
     match core.ir {
         0x4C => { // JMP ABS
-            let address: u16 = absolute(core);
-
-            core.pc = address;
+            address = absolute(core);
         }
-        0x6C => {}
+        0x6C => { // JMP IND
+            address = indirect(core);
+        }
         _ => unreachable!("{:?}", core.info)
     }
+
+    core.pc = address;
 
     core
 } 
