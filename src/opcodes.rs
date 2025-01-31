@@ -1,5 +1,3 @@
-use std::result;
-
 use crate::system::Core;
 use crate::addressing::{zero_page, zero_page_x, zero_page_y,
                         absolute, absolute_x, absolute_y,
@@ -300,7 +298,38 @@ pub fn bvs(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn bit(core: &mut Core) -> &mut Core { core } 
+pub fn bit(core: &mut Core) -> &mut Core {
+    let negative: bool;
+    let overflow: bool;
+    let result: u8;
+
+    match core.ir {
+        0x24 => { // BIT ZP
+            let zp: u8 = zero_page(core);
+            result = core.acc & core.memory[zp as usize];
+            negative = if (core.memory[zp as usize] >> 7) & 0b1 == 1 { true } else { false };
+            overflow = if (core.memory[zp as usize] >> 6) & 0b1 == 1 { true } else { false };
+        }
+        0x2c => { // BIT ABS
+            let abs: u16 = absolute(core);
+            result = core.acc & core.memory[abs as usize];
+            negative = if (core.memory[abs as usize] >> 7) & 0b1 == 1 { true } else { false };
+            overflow = if (core.memory[abs as usize] >> 6) & 0b1 == 1 { true } else { false };
+        }
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    if result == 0x00 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if negative { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    if overflow { core.stat |= 0b01000000 } // Set overflow flag
+    else { core.stat &= !0b01000000 } // Clear overflow flag
+
+    core
+} 
 
 pub fn brk(core: &mut Core) -> &mut Core {
     // Grab the full stack pointer address.
