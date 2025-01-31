@@ -454,7 +454,30 @@ pub fn plp(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn rti(core: &mut Core) -> &mut Core { core } 
+pub fn rti(core: &mut Core) -> &mut Core {
+    let stack_address: usize = 0x0100 | (core.sp as u16) as usize;
+
+    let sr: u8 = core.memory[stack_address + 1];
+    core.stat = sr;
+    core.stat &= !0b00110000; // Clear break and unused flags
+
+    core.memory[stack_address + 1] = 0x00; // Wipe the value from the stack
+
+    core.sp += 1; // Ascend stack pointer
+
+    let pcl: u16 = core.memory[stack_address + 1] as u16;
+    let pch: u16 = (core.memory[stack_address + 2] as u16) << 8;
+
+    // Set the new PC value.
+    core.pc = pch | pcl;
+
+    core.memory[(stack_address + 1)..=(stack_address + 2)]
+        .copy_from_slice(&[0x00, 0x00]); // Wipe the value from the stack
+
+    core.sp += 2; // Ascend stack pointer
+
+    core
+} 
 
 pub fn rts(core: &mut Core) -> &mut Core {
     // Get the new PC value from the stack.
