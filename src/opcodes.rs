@@ -1,3 +1,5 @@
+use std::result;
+
 use crate::system::Core;
 use crate::addressing::{zero_page, zero_page_x, zero_page_y,
                         absolute, absolute_x, absolute_y,
@@ -1034,7 +1036,75 @@ pub fn ldy(core: &mut Core) -> &mut Core {
     core
 } 
 
-pub fn lsr(core: &mut Core) -> &mut Core { core } 
+pub fn lsr(core: &mut Core) -> &mut Core {
+    let new_carry: bool;
+    let result: u8;
+    let inc: u16;
+
+    match core.ir {
+        0x4a => { // LSR ACC
+            new_carry = if (core.acc & 0b1) != 0 { true } else { false };
+
+            core.acc >>= 1;
+
+            result = core.acc;
+            inc = 1;
+        }
+        0x46 => { // LSR ZP
+            let zp: u8 = zero_page(core);
+
+            new_carry = if (core.memory[zp as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[zp as usize] >>= 1;
+
+            result = core.memory[zp as usize];
+            inc = 2;
+        }
+        0x56 => { // LSR ZPX
+            let zpx: u8 = zero_page_x(core);
+
+            new_carry = if (core.memory[zpx as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[zpx as usize] >>= 1;
+
+            result = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0x4e => { // LSR ABS
+            let abs: u16 = absolute(core);
+
+            new_carry = if (core.memory[abs as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[abs as usize] >>= 1;
+
+            result = core.memory[abs as usize];
+            inc = 3;
+        }
+        0x5e => { // LSR ABSX
+            let absx: u16 = absolute_x(core);
+
+            new_carry = if (core.memory[absx as usize] & 0b1) != 0 { true } else { false };
+
+            core.memory[absx as usize] >>= 1;
+
+            result = core.memory[absx as usize];
+            inc = 3;
+        }
+        _ => unreachable!("{:?}", core.info)
+    }
+
+    if new_carry { core.stat |= 0b00000001 } // Set carry flag
+    else { core.stat &= !0b00000001 } // clear carry flag
+
+    if result == 0x00_u8 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // clear zero flag
+
+    core.stat &= !0b10000000; // clear negative flag
+
+    core.pc += inc;
+
+    core
+} 
 
 pub fn ora(core: &mut Core) -> &mut Core {
     let value: u8;
