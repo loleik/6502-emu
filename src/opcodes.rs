@@ -744,15 +744,46 @@ pub fn cpy(core: &mut Core) -> &mut Core {
 } 
 
 pub fn dec(core: &mut Core) -> &mut Core {
+    let value: u8;
+    let inc: u16;
+
     match core.ir {
-        //0xc6 => {}
-        //0xd6 => {}
-        //0xce => {}
-        //0xde => {}
+        0xc6 => { // DEC ZP
+            let zp: u8 = zero_page(core);
+            core.memory[zp as usize] = core.memory[zp as usize].wrapping_sub(1);
+            value = core.memory[zp as usize];
+            inc = 2;
+        }
+        0xd6 => { // DEC ZPX
+            let zpx: u8 = zero_page_x(core);
+            core.memory[zpx as usize] = core.memory[zpx as usize].wrapping_sub(1);
+            value = core.memory[zpx as usize];
+            inc = 2;
+        }
+        0xce => { // DEC ABS
+            let abs: u16 = absolute(core);
+            core.memory[abs as usize] = core.memory[abs as usize].wrapping_sub(1);
+            value = core.memory[abs as usize];
+            inc = 3;
+        }
+        0xde => { // DEC ABSX
+            let absx: u16 = absolute_x(core);
+            core.memory[absx as usize] = core.memory[absx as usize].wrapping_sub(1);
+            value = core.memory[absx as usize];
+            inc = 3;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
-    //core
+    if value == 0x00 { core.stat |= 0b00000010 } // Set zero flag
+    else { core.stat &= !0b00000010 } // Clear zero flag
+
+    if (value >> 7) & 0b1 == 0b1 { core.stat |= 0b10000000 } // Set negative flag
+    else { core.stat &= !0b10000000 } // Clear negative flag
+
+    core.pc += inc;
+
+    core
 } 
 
 pub fn dex(core: &mut Core) -> &mut Core {
