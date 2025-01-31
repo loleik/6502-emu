@@ -18,7 +18,7 @@ This is not an emulator of any specific system, so things like the amount of mem
 
 Some resources I am finding helpful:
 * [Nesdev 6502 Reference](https://www.nesdev.org/obelisk-6502-guide/), this has resources for instructions, address modes, flags, etc.
-* [Masswerk 6502 Instruction Reference](https://www.masswerk.at/6502/6502_instruction_set.html), similar to the Nesdev resource but written by someone else.
+* [Masswerk 6502 Instruction Reference](https://www.masswerk.at/6502/6502_instruction_set.html), similar to the Nesdev resource but written by someone else. NOTE: The documentation for the DEC instruction here contradicts other sources I've been using. I've followed the more commonly documented version, which is decrementing memory using zero page, zero page x, absolute, and absolute x addressing. This site seems to say DEC is for decrementing the accumulator.
 * [6502 Wikipedia Article](https://en.wikipedia.org/wiki/MOS_Technology_6502), bit obvious I know.
 * [6502.org Forum](http://forum.6502.org/), the website as a whole is helpful, but particularly the forum.
 * [6502_65C02_functional_tests](https://github.com/Klaus2m5/6502_65C02_functional_tests), a repository of test binaries for the 6502, 65C02, etc.
