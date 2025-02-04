@@ -1,7 +1,8 @@
 use crate::system::Core;
 use crate::addressing::{zero_page, zero_page_x, zero_page_y,
                         absolute, absolute_x, absolute_y,
-                        indirect, relative};
+                        indirect, x_indirect, indirect_y, 
+                        relative};
 
 enum Value {
     U8(u8),
@@ -54,8 +55,14 @@ pub fn adc(core: &mut Core) -> &mut Core {
             value = core.memory[absx as usize];
             inc = 3;
         }
-        //0x61_u8 => {}
-        //0x71_u8 => {}
+        0x61_u8 => { // ADC X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0x71_u8 => { // ADC IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -123,8 +130,14 @@ pub fn and(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0x21_u8 => {}
-        //0x31_u8 => {}
+        0x21_u8 => { // AND X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0x31_u8 => { // AND IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -634,8 +647,14 @@ pub fn cmp(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0xC1 => {}
-        //0xD1 => {}
+        0xC1 => { // CMP X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0xD1 => { // CMP IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -876,8 +895,14 @@ pub fn eor(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0x41 => {}
-        //0x51 => {}
+        0x41 => { // EOR X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0x51 => { // EOR IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -1015,8 +1040,14 @@ pub fn lda(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0xa1_u8 => {}
-        //0xb1_u8 => {}
+        0xa1_u8 => { // LDA X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0xb1_u8 => { // LDA IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -1227,8 +1258,14 @@ pub fn ora(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0x01_u8 => {}
-        //0x11_u8 => {}
+        0x01_u8 => { // ORA X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0x11_u8 => { // ORA IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
@@ -1448,8 +1485,14 @@ pub fn sbc(core: &mut Core) -> &mut Core {
             value = core.memory[absy as usize];
             inc = 3;
         }
-        //0xE1_u8 => {}
-        //0xF1_u8 => {}
+        0xE1_u8 => { // SBC X_IND
+            value = x_indirect(core);
+            inc = 2;
+        }
+        0xF1_u8 => { // SBC IND_Y
+            value = indirect_y(core);
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
     
@@ -1508,8 +1551,14 @@ pub fn sta(core: &mut Core) -> &mut Core {
             address = Value::U16(absolute_y(core));
             inc = 3;
         }
-        //0x81_u8 => {}
-        //0x91_u8 => {}
+        0x81_u8 => { // STA X_IND
+            address = Value::U8(x_indirect(core));
+            inc = 2;
+        }
+        0x91_u8 => { // STA IND_Y
+            address = Value::U8(indirect_y(core));
+            inc = 2;
+        }
         _ => unreachable!("{:?}", core.info)
     }
 
