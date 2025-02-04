@@ -13,6 +13,8 @@ Commands:
 Options:
 * `-h`, `--help`  Print help
 
+All opcodes and addressing modes are now implemented, next is debugging which is quite daunting to be honest.
+
 ## Notes
 This is not an emulator of any specific system, so things like the amount of memory may seem strange and not align with any specific system. I may use this as a core for some other emulator later but this repository is just for 6502 emulation.
 
