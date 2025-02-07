@@ -16,6 +16,32 @@ impl Value {
             _ => unreachable!(),
         }
     }
+
+    fn bcd_add(&self, other: &Self) -> (u8, bool) {
+        let a: u8 = self.get_u8();
+        let b: u8 = other.get_u8();
+        let mut wrapped: bool = false;
+
+        let mut result: u8 = a + b;
+        let mut adjust: u8 = 0;
+        
+        if (result & 0x0F) > 9 {
+            adjust |= 0x06;
+        }
+        
+        if result > 0x99 || (result & 0xF0) > 0x90 {
+            adjust |= 0x60;
+        }
+        
+        result = result.wrapping_add(adjust);
+        
+        if result > 99 {
+            result = result - 99;
+            wrapped = true;
+        }
+        
+        (result, wrapped)
+    }
 }
 
 pub fn adc(core: &mut Core) -> &mut Core {
