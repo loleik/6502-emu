@@ -44,6 +44,25 @@ impl Value {
         
         (result, wrapped)
     }
+
+    fn bcd_sub(&self, other: &Self, borrow: u8) -> (u8, bool) {
+        let a: u8 = self.get_u8();
+        let b: u8 = other.get_u8();
+        let mut wrapped: bool = false;
+        
+        let b_compliment: u8 = 99 - b;
+        let a_b_compliment: u8 = b_compliment + a;
+
+        let msb: u8 = a_b_compliment >> 7;
+
+        let result: u8 = a_b_compliment + msb + borrow;
+
+        if result > a && result > b {
+            wrapped = true;
+        }
+
+        (result, wrapped)
+    }
 }
 
 pub fn adc(core: &mut Core) -> &mut Core {
@@ -1485,7 +1504,7 @@ pub fn ror(core: &mut Core) -> &mut Core {
 
 pub fn sbc(core: &mut Core) -> &mut Core {
     // Check for the decimal mode flag, as it means we have to work with binary coded decimal.
-    let _decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
+    let decimal: bool = if (core.stat >> 3) & 0b1 == 0 { false } else { true };
 
     let value: u8;
     let inc: u16;
@@ -1531,30 +1550,37 @@ pub fn sbc(core: &mut Core) -> &mut Core {
         _ => unreachable!("{:?}", core.info)
     }
     
-    let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check.
-
     let borrow: u8 = if core.stat & 0b1 == 0 { 1 } else { 0 }; // inverse of carry flag
             
-    // Calculate A - M - Carry, zero extending all values:
-    let result: i16 = (core.acc as i16) - (value as i16) - (borrow as i16);
+    if decimal {
+        let bcd_result: (u8, bool) = Value::bcd_sub(&Value::U8(core.acc), &Value::U8(value), borrow);
 
-    core.acc = result as u8; // Clamp to 8 bits and store result
+        core.acc = bcd_result.0;
 
-    if result >= 0 { core.stat |= 0b00000001 } // set carry flag
-    else { core.stat &= !0b00000001 } // clear carry flag
+        if bcd_result.1 { core.stat |= 0b00000001 } // set carry flag
+        else { core.stat &= !0b00000001 } // clear carry flag
+    } else {
+        let result: i16 = (core.acc as i16) - (value as i16) - (borrow as i16);
+        let acc_sign: bool = (core.acc >> 7) & 0b1 != 0; // Sign used for overflow check before addition.
+        
+        core.acc = result as u8; // Clamp to 8 bits and store result
+
+        if result > 0xff { core.stat |= 0b00000001 } // set carry flag
+        else { core.stat &= !0b00000001 } // clear carry flag
+    
+        // Overflow flag logic:
+        let mem_sign: bool = (value >> 7) & 0b1 != 0;
+        let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
+    
+        if acc_sign == mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
+        else { core.stat &= !0b01000000 } // clear overflow flag        
+    };
 
     if core.acc == 0 { core.stat |= 0b00000010 } // set zero flag
     else { core.stat &= !0b00000010 } // clear zero flag
 
     if ((core.acc >> 7) & 0b1) == 0b1 { core.stat |= 0b10000000 } // set negative flag
     else { core.stat &= !0b10000000 } // clear negative flag
-
-    // Overflow flag logic:
-    let mem_sign: bool = (value >> 7) & 0b1 != 0;
-    let res_sign: bool = (core.acc >> 7) & 0b1 != 0;
-
-    if acc_sign != mem_sign && acc_sign != res_sign { core.stat |= 0b01000000 } // set overflow flag
-    else { core.stat &= !0b01000000 } // clear overflow flag
 
     core.pc += inc;
 
